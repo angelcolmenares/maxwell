@@ -1,0 +1,85 @@
+Arnold Schwarzenegger
+
+.maxwell/  
+  ws.json  [{id:guid, name: string}, ....]
+  cookies/
+     last-ws.txt
+  ws/
+    default/                    00000000-0000-0000-0000-000000000000
+      ai-connections.json       settings for all sessions in this ws
+      agents.json               list of agents with settings for all sessions in this ws
+      chats.json                [  { id: guid, name: string , leader:string .. } ...      ]
+      instructions/             for all chat sessions in this ws
+        agent-name.md           instructions for agents in this ws 
+        other-agent.md
+      skills/                   skills for this ws 
+        agents-skills/
+          agent-name/
+            say-hello/
+              SKILL.md
+        shared-skills/
+          some-skill-name/
+            SKILL.md
+      chats/           
+        01/                    guid session id
+          XXX settings.json        NOOOOO ? for session 01: name of main, functionSelector, agentSelector. allowed-assistants:[], assistants-as-function:[], allowed-functions:[], 'banned-':[]
+          messages/           DB ?
+        02/
+        03/
+      cookies/
+        last-session
+      variables.json           {'name': value}
+
+    other-ws/
+
+
+AppState { AppSettings, connections, agents, ws(selected), chat(selected)}
+----------------------------------------------------------------------------------------------
+
+
+
+
+https://github.com/microsoft/agent-framework/blob/main/dotnet/samples/03-workflows/Agents/CustomAgentExecutors/Program.cs#L202
+
+  var chatClient = new AzureOpenAIClient(new Uri(endpoint), new AzureCliCredential()).GetChatClient(deploymentName).AsIChatClient();
+
+   // Create the executors
+  var sloganWriter = new SloganWriterExecutor("SloganWriter", chatClient);
+  var feedbackProvider = new FeedbackExecutor("FeedbackProvider", chatClient);
+
+
+ public SloganWriterExecutor(string id, IChatClient chatClient) : base(id)
+    {
+        ChatClientAgentOptions agentOptions = new()
+        {
+            ChatOptions = new()
+            {
+                Instructions = "You are a professional slogan writer. You will be given a task to create a slogan.",
+                ResponseFormat = ChatResponseFormat.ForJsonSchema<SloganResult>()
+            }
+        };
+
+        this._agent = new ChatClientAgent(chatClient, agentOptions);
+    }
+
+{
+    [
+        {
+            "Name": "RemoteOpenAi",
+            "ClientType": "OpenAiClient",
+            "Options":{
+                "Endpoint":"",
+                "Key":""
+            }
+        },
+        {
+            "Name":"LocalOpenAi",
+            "ClientType": "OpenAiClient",
+            "Options":{
+                "Endpoint":"http://192.168.2.40",
+                "Key":"no-key"
+            }
+        }
+    
+    ]
+}

@@ -1,0 +1,36 @@
+<Project>
+    <!-- Shared build properties for all src projects -->
+
+    <PropertyGroup>
+        <!-- Default target framework -->
+        <TargetFramework>net10.0</TargetFramework>
+
+        <!-- C# language settings -->
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+
+        <!-- Code quality -->
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <WarningsAsErrors>true</WarningsAsErrors>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisLevel>latest</AnalysisLevel>
+
+        <IsPackable>true</IsPackable>
+    </PropertyGroup>
+
+    <!-- Test project specific settings -->
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Tests'">
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <!-- Sandbox project specific settings -->
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Sandbox'">
+	    <IsPackable>false</IsPackable>
+    </PropertyGroup>
+
+    <!-- Secret project specific settings -->
+    <PropertyGroup Condition="'$(MSBuildProjectName)' == 'Secrets'">
+	    <IsPackable>false</IsPackable>
+    </PropertyGroup>
+</Project>

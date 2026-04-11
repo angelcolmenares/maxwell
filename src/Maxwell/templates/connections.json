@@ -1,0 +1,25 @@
+[
+	{
+      "name": "openai-prod",
+      "clientType": "OpenAI",
+      "options": {
+        "apiKey": "sk-..."
+      }
+    },    
+	{
+      "name": "github",
+      "clientType": "github",
+      "options": {
+        "personalToke": ""
+      }
+    },
+	{
+      "name": "openai-local",
+      "clientType": "OpenAI",
+      "options": {
+        "apiKey": "no-key",
+        "endpoint": "http://192.168.40.20:8080/v1"
+      }
+    }
+]
+

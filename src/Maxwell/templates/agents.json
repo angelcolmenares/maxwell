@@ -1,0 +1,60 @@
+[
+  {
+    "name": "SuperAgent86",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Answers any question",
+    "role": "Leader",
+    "options": {
+      "temperature-x": 0.7
+    }
+  },
+  {
+    "name": "AssistantSelector",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Finds assistants",
+    "role": "AssistantSelector",
+    "options": {}
+  },
+  {
+    "name": "ToolSelector",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Finds tools",
+    "role": "ToolSelector",
+    "options": {}
+  },
+  {
+    "name": "AsistenteGithub",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Works with github",
+    "role": "Assistant",
+    "options": {}
+  },
+  {
+    "name": "PongAssistant",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Makes system diagnostics. Responds PONG to any request releated to system diagnostics",
+    "role": "Assistant",
+    "options": {}
+  },
+  {
+    "name": "HelloWorldAssistant",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Responds world to hello or hi request",
+    "role": "Assistant",
+    "options": {}
+  },
+  {
+    "name": "ImageAssistant",
+    "model": "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M",
+    "connection": "openai-local",
+    "description": "Handles vision tasks",
+    "role": "Assistant",
+    "options": {}
+  }
+]

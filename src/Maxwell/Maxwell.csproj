@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>    
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" />
+    <PackageReference Include="ModelContextProtocol" />
+    <PackageReference Include="AgentFrameworkToolkit.GitHub" />
+    <PackageReference Include="AgentFrameworkToolkit.OpenAI" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Maxwell/Maxwell.csproj" />
+  <Project Path="Maxwell.ConsoleDemo/Maxwell.ConsoleDemo.csproj" />
+</Solution>
