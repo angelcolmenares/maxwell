@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 
 namespace Maxwell;
 
-public class ToolSelector(IRealToolProxy toolProxy )
+public class ToolSelector(IToolProxy toolProxy )
 {
     private const string _toolsUsageTemplate =
         """

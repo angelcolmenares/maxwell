@@ -5,7 +5,7 @@ namespace Maxwell;
 
 public class AgenticAssistantProxy(
     Workspace workspace
-    ) : IRealAssistantProxy
+    ) : IAssistantProxy
 {
     public Workspace Workspace => workspace;
     private const string _instrucctionsTemplate =

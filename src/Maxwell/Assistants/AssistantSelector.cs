@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 
 namespace Maxwell;
 
-public class AssistantSelector(IRealAssistantProxy assistantProxy)
+public class AssistantSelector(IAssistantProxy assistantProxy)
 {
     private const string _instrucctionsTemplate =
         """
