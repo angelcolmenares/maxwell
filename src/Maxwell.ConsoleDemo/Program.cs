@@ -9,10 +9,8 @@ Guid workspaceId = Guid.Parse(AppSettings.DefaultWorkspaceId);
 Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
 JsonFileSystemAccessValidator fileSystemAccessValidator = new (AppSettings.GetFileSystemAccessJson(workspaceId));
 FileSystemAIFunctions fileSystemAIFunctions = new (fileSystemAccessValidator);
-// Uso en Program.cs
-var git = new GitAIFunctions(
-    validator:           fileSystemAccessValidator,
-    personalAccessToken: PatResolver.Resolve(config:null));
+
+var git = new GitAIFunctions( validator:fileSystemAccessValidator,  personalAccessToken: PatResolver.Resolve(config:null));
 
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = async () => [
@@ -38,6 +36,7 @@ Workspace workspace = await Workspace.CreateAsync(
     GetSkillContextProvider,
     workspaceAgentFactory,
     aiFunctions,
+    fileSystemAccessValidator, 
     GetWorkspaceToolSelector,
     GetWorkspaceAssistantSelector,
     toolCallingMiddleware: ToolCallingMiddleware,

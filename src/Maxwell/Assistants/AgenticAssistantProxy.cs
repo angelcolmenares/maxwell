@@ -7,6 +7,7 @@ public class AgenticAssistantProxy(
     Workspace workspace
     ) : IRealAssistantProxy
 {
+    public Workspace Workspace => workspace;
     private const string _instrucctionsTemplate =
         """
         <assistants_usage>

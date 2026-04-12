@@ -29,6 +29,7 @@ public class Workspace
     private readonly ToolSelector _toolSelector;
 
     private readonly AssistantSelector _assistantSelector;
+    private readonly IFileSystemAccessValidator _fileSystemAccessValidator;
 
     private Workspace(
         Guid workspaceId,
@@ -38,6 +39,7 @@ public class Workspace
         IAgentInstructions agentInstructions,
         AgentFactory agentFactory,
         Func<Task<List<AIFunction>>> aiToolsFunc,
+        IFileSystemAccessValidator fileSystemAccessValidator,
         Func<Workspace, ToolSelector> toolSelectorFunc,
         Func<Workspace, AssistantSelector> assistantSelectorFunc,
         IEnumerable<AIContextProvider>? aiContextProviders = null,
@@ -69,6 +71,7 @@ public class Workspace
         _assistantSelectorFunc = assistantSelectorFunc;
         _toolSelector = _toolSelectorFunc(this);
         _assistantSelector = _assistantSelectorFunc(this);
+        _fileSystemAccessValidator= fileSystemAccessValidator;
 
     }
     private AssistantsDelegate? assistantDelegate = null;
@@ -88,6 +91,9 @@ public class Workspace
         AgentDefintionList agents = await _agentDefinitionProvider.BuildAsync(cancellationToken);
         return agents.AgentFrontmatters;
     }
+
+    public async Task<bool> ValidateAccessAsync(string path, CancellationToken cancellationToken=default)
+    => await _fileSystemAccessValidator.ValidateAccessAsync(path, cancellationToken);
 
     private async Task<ChatDefinition?> GetChatDefinition(Guid chatId, CancellationToken cancellationToken = default)
     => await _chatStore.GetByIdAsync(chatId, cancellationToken);
@@ -173,6 +179,7 @@ public class Workspace
         Func<Guid, IEnumerable<AgentFrontmatter>, ILoggerFactory?, SkillContextProvider> skillContextProviderFunc,
         WorkspaceAgentFactory workspaceAgentFactory,
         Func<Task<List<AIFunction>>> aiTools,
+        IFileSystemAccessValidator fileSystemAccessValidator,
         Func<Workspace, ToolSelector> toolSelectorFunc,
         Func<Workspace, AssistantSelector> assistantSelectorFunc,
         IEnumerable<AIContextProvider>? aiContextProviders = null,
@@ -200,6 +207,7 @@ public class Workspace
             agentInstructions,
             agentFactory,
             aiTools,
+            fileSystemAccessValidator,
             toolSelectorFunc,
             assistantSelectorFunc,
             [skillContextProvider, .. aiContextProviders ?? []],
