@@ -5,16 +5,27 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 
-var workspaceId = Guid.Parse(AppSettings.DefaultWorkspaceId);
-var chatId = Guid.Parse(AppSettings.DefaultChatId);
-var mcpDockerClient = await CreateMcpDockerClient();
-var aiFunctions = () => GetMcpDockerFunctions(mcpDockerClient);
+Guid workspaceId = Guid.Parse(AppSettings.DefaultWorkspaceId);
+Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
+JsonFileSystemAccessValidator fileSystemAccessValidator = new (AppSettings.GetFileSystemAccessJson(workspaceId));
+FileSystemAIFunctions fileSystemAIFunctions = new (fileSystemAccessValidator);
+// Uso en Program.cs
+var git = new GitAIFunctions(
+    validator:           fileSystemAccessValidator,
+    personalAccessToken: PatResolver.Resolve(config:null));
 
-using  ILoggerFactory loggerFactory = LoggerFactory.Create(builder =>
-{
-    builder.AddConsole();
-    builder.SetMinimumLevel(LogLevel.Debug); 
-});
+McpClient mcpDockerClient = await CreateMcpDockerClient();
+Func<Task<List<AIFunction>>> aiFunctions = async () => [
+    .. fileSystemAIFunctions.GetAllFunctions(), 
+    .. git.GetAllFunctions(),
+    .. await GetMcpDockerFunctions(mcpDockerClient)];
+
+using ILoggerFactory loggerFactory = LoggerFactory.Create(
+    builder =>
+    {
+        builder.AddConsole();
+        builder.SetMinimumLevel(LogLevel.Debug);
+    });
 
 
 WorkspaceAgentFactory workspaceAgentFactory = new();
@@ -26,14 +37,14 @@ Workspace workspace = await Workspace.CreateAsync(
     GetAgentInstructionsProvider,
     GetSkillContextProvider,
     workspaceAgentFactory,
-    aiFunctions, 
+    aiFunctions,
     GetWorkspaceToolSelector,
     GetWorkspaceAssistantSelector,
-    toolCallingMiddleware:ToolCallingMiddleware,
-    loggerFactory:loggerFactory
+    toolCallingMiddleware: ToolCallingMiddleware,
+    loggerFactory: loggerFactory
     );
 
-ChatSession chat = await  workspace.GetChatSession(chatId);
+ChatSession chat = await workspace.GetChatSession(chatId);
 AIAgent leader = chat.Leader;
 var session = await leader.CreateSessionAsync();
 var hp = leader.GetService<InMemoryChatHistoryProvider>();
@@ -113,9 +124,9 @@ static JsonConnectionDefinitionProvider GetConnectionDefinitionProvider(Guid wor
 static JsonChatStore GetChatStore(Guid workspaceId) => new(AppSettings.ChatsJsonFile(workspaceId));
 
 static FileAgentSkillContextProvider GetSkillContextProvider(
-    Guid workspaceId, 
-    IEnumerable<AgentFrontmatter> agentFrontmatterList, ILoggerFactory? loggerFactory=null)
-    => new( AppSettings.GetSkillDirectory(workspaceId), agentFrontmatterList, loggerFactory: loggerFactory );
+    Guid workspaceId,
+    IEnumerable<AgentFrontmatter> agentFrontmatterList, ILoggerFactory? loggerFactory = null)
+    => new(AppSettings.GetSkillDirectory(workspaceId), agentFrontmatterList, loggerFactory: loggerFactory);
 
 static async ValueTask<object?> ToolCallingMiddleware(
     AIAgent callingAgent,

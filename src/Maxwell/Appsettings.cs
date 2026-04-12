@@ -7,6 +7,7 @@ public static class AppSettings
     public const string ConnectionsJsonFileName = "connections.json";
     public const string AgentsJsonFileName = "agents.json";
     public const string ChatsJsonFileName = "chats.json";
+    public const string FileSystemAccessJson ="file-system-access.json";
     public const string SkillsDirectoryName ="skills";
     public const string InstructionsDirectoryName ="instructions";
 
@@ -47,4 +48,8 @@ public static class AppSettings
     public static string GetInstructionsDirectory(Guid workspaceId) => 
     Path.Combine(WorkspacesDirectory, workspaceId.ToString(), InstructionsDirectoryName);
 
+    public static string GetFileSystemAccessJson(Guid workspaceId)
+    {
+        return Path.Combine(WorkspacesDirectory, workspaceId.ToString(), FileSystemAccessJson);
+    }
 }
