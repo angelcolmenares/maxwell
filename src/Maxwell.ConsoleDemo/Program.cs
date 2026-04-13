@@ -11,11 +11,13 @@ JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFil
 FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
 
 var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
+var md = new MarkItDownAIFunctions(fileSystemAccessValidator, new MarkItDownCliRunner());
 
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = async () => [
     .. fileSystemAIFunctions.GetAllFunctions(),
     .. git.GetAllFunctions(),
+    .. md.GetAllFunctions(),
     .. await GetMcpDockerFunctions(mcpDockerClient)];
 
 using ILoggerFactory loggerFactory = LoggerFactory.Create(
