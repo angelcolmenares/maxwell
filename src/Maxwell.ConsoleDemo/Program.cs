@@ -7,14 +7,14 @@ using ModelContextProtocol.Client;
 
 Guid workspaceId = Guid.Parse(AppSettings.DefaultWorkspaceId);
 Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
-JsonFileSystemAccessValidator fileSystemAccessValidator = new (AppSettings.GetFileSystemAccessJson(workspaceId));
-FileSystemAIFunctions fileSystemAIFunctions = new (fileSystemAccessValidator);
+JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
+FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
 
-var git = new GitAIFunctions( validator:fileSystemAccessValidator,  personalAccessToken: PatResolver.Resolve(config:null));
+var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
 
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = async () => [
-    .. fileSystemAIFunctions.GetAllFunctions(), 
+    .. fileSystemAIFunctions.GetAllFunctions(),
     .. git.GetAllFunctions(),
     .. await GetMcpDockerFunctions(mcpDockerClient)];
 
@@ -36,7 +36,7 @@ Workspace workspace = await Workspace.CreateAsync(
     GetSkillContextProvider,
     workspaceAgentFactory,
     aiFunctions,
-    fileSystemAccessValidator, 
+    fileSystemAccessValidator,
     GetWorkspaceToolSelector,
     GetWorkspaceAssistantSelector,
     toolCallingMiddleware: ToolCallingMiddleware,
@@ -135,7 +135,7 @@ static async ValueTask<object?> ToolCallingMiddleware(
 {
     SanitizeMessage(context);
     string agentName = callingAgent.Name ?? "AgenteDesconocido";
-    context.Arguments["agentName"] = agentName;
+    context.Arguments["agentName"] = agentName;    
     return await next(context, cancellationToken);
 }
 
@@ -157,12 +157,12 @@ static void SanitizeMessage(FunctionInvocationContext context)
             {
                 var assistantMsg = JsonSerializer.Deserialize<object>(healthyJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
                 context.Arguments["message"] = assistantMsg;
-                Console.WriteLine("[Middleware] Message sanitized and unpacked.");
+                Console.WriteLine("[DEBUG ToolCallingMiddleware] Message sanitized and unpacked.");
             }
             catch (Exception exception)
             {
-                Console.WriteLine(healthyJson);
-                Console.WriteLine(exception.Message);
+                Console.WriteLine($"[ERROR ToolCallingMiddleware]  {exception}");
+                throw;
             }
         }
     }
