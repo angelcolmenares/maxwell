@@ -4,8 +4,9 @@ using Microsoft.Extensions.AI;
 namespace Maxwell;
 
 public class AgenticToolProxy(
-    Workspace workspace) : IRealToolProxy
+    Workspace workspace) : IToolProxy
 {
+    public Workspace Workspace => workspace;
     public async Task<IList<AIFunction>> FindTools(string query, string agentName, CancellationToken cancellationToken = default)
     {
         AgentDefinition? toolSelectorDefinition = await workspace.GetAgentDefinitionByRole("ToolSelector");

@@ -2,7 +2,7 @@ using Microsoft.Extensions.AI;
 
 namespace Maxwell;
 
-public class AssistantSelector(IRealAssistantProxy assistantProxy )
+public class AssistantSelector(IAssistantProxy assistantProxy)
 {
     private const string _instrucctionsTemplate =
         """
@@ -43,21 +43,32 @@ public class AssistantSelector(IRealAssistantProxy assistantProxy )
                 Returns response as string
                 """);
 
-    private async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken=default)
+    private async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken = default)
     {
+        var uri = message.Contents.FirstOrDefault(f => !string.IsNullOrEmpty(f.Uri))?.Uri;
+        if (!string.IsNullOrEmpty(uri) && new Uri(uri).IsFile)
+        {
+            if (!await assistantProxy.Workspace.ValidateAccessAsync(uri, cancellationToken))
+            {
+                return AccessDenied(uri);
+            }
+        }
         return await assistantProxy.InvokeAssistant(assistantName, agentName, message, cancellationToken);
     }
 
+     private static string AccessDenied(string path) =>
+        $"Access denied: the path '{path}' is not within an allowed directory.";
 
-    private async Task<string> FindAssistants(string query, string agentName, CancellationToken cancellationToken=default)
+
+    private async Task<string> FindAssistants(string query, string agentName, CancellationToken cancellationToken = default)
     {
-        var toolProxyResponse = await  assistantProxy.FindAssistants(query, agentName,cancellationToken );        
-        var filteredResults = toolProxyResponse        
-            .Select(t => new { t.Name, t.Description, t.Model, ReturnType="string" })
+        var toolProxyResponse = await assistantProxy.FindAssistants(query, agentName, cancellationToken);
+        var filteredResults = toolProxyResponse
+            .Select(t => new { t.Name, t.Description, t.Model, ReturnType = "string" })
             .ToList();
         return string.Format(_instrucctionsTemplate, filteredResults.ToMarkdownTable());
     }
 
-    public async Task<Assistants> GetAssistants ()=> await assistantProxy.GetAssistants();
+    public async Task<Assistants> GetAssistants() => await assistantProxy.GetAssistants();
 
 }
