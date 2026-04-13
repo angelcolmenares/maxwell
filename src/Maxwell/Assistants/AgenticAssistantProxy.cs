@@ -61,7 +61,7 @@ public class AgenticAssistantProxy(
         }
         try
         {
-            var chatMessage = await message.ToChatMessage();
+            var chatMessage = message.ToChatMessage();
             var result = await assistant.RunAsync(chatMessage, cancellationToken: cancellationToken);
 
             if (result == null || string.IsNullOrEmpty(result.Text))

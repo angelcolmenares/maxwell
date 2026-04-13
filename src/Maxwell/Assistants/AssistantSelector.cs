@@ -44,15 +44,7 @@ public class AssistantSelector(IAssistantProxy assistantProxy)
                 """);
 
     private async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken = default)
-    {
-        var uri = message.Contents.FirstOrDefault(f => !string.IsNullOrEmpty(f.Uri))?.Uri;
-        if (!string.IsNullOrEmpty(uri) && new Uri(uri).IsFile)
-        {
-            if (!await assistantProxy.Workspace.ValidateAccessAsync(uri, cancellationToken))
-            {
-                return AccessDenied(uri);
-            }
-        }
+    {        
         return await assistantProxy.InvokeAssistant(assistantName, agentName, message, cancellationToken);
     }
 
