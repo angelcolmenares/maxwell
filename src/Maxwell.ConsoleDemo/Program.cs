@@ -12,12 +12,14 @@ FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
 
 var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
 var md = new MarkItDownAIFunctions(fileSystemAccessValidator, new MarkItDownCliRunner());
+var images = new ImageAIFunctions(fileSystemAccessValidator);
 
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = async () => [
     .. fileSystemAIFunctions.GetAllFunctions(),
     .. git.GetAllFunctions(),
     .. md.GetAllFunctions(),
+    .. images.GetAllFunctions(),
     .. await GetMcpDockerFunctions(mcpDockerClient)];
 
 using ILoggerFactory loggerFactory = LoggerFactory.Create(

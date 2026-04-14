@@ -49,10 +49,10 @@ public class AgenticAssistantProxy(
                 """);
 
 
-    public async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken=default)
+    public async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken = default)
     {
         Console.WriteLine($"Invoking :{assistantName}. Caller:{agentName} Instructions:{message} ...");
-        AssistantsDelegate assistantsDelegate = workspace.GetAssistantsDelegate(); 
+        AssistantsDelegate assistantsDelegate = workspace.GetAssistantsDelegate();
         var assistants = await assistantsDelegate(cancellationToken);
         AIAgent? assistant = assistants.FirstOrDefault(f => f.Name == assistantName);
         if (assistant == default)
@@ -61,7 +61,7 @@ public class AgenticAssistantProxy(
         }
         try
         {
-            var chatMessage = message.ToChatMessage();
+            var chatMessage = await message.ToChatMessage(authorName: agentName, cancellationToken:cancellationToken);
             var result = await assistant.RunAsync(chatMessage, cancellationToken: cancellationToken);
 
             if (result == null || string.IsNullOrEmpty(result.Text))
@@ -80,18 +80,18 @@ public class AgenticAssistantProxy(
     }
 
 
-    public async Task<IList<AgentFrontmatter>> FindAssistants(string query, string agentName, CancellationToken cancellationToken=default)
-    {        
-        AgentDefinition? assistantSelectorDefinition =  await workspace.GetAgentDefinitionByRole("AssistantSelector", cancellationToken);
+    public async Task<IList<AgentFrontmatter>> FindAssistants(string query, string agentName, CancellationToken cancellationToken = default)
+    {
+        AgentDefinition? assistantSelectorDefinition = await workspace.GetAgentDefinitionByRole("AssistantSelector", cancellationToken);
 
-        if (assistantSelectorDefinition==default) return[];
+        if (assistantSelectorDefinition == default) return [];
 
         AIAgent selector = await workspace.GetAgent(
             assistantSelectorDefinition,
             tools: [],
             cancellationToken);
-        
-        AssistantsDelegate assistantsDelegate = workspace.GetAssistantsDelegate(); 
+
+        AssistantsDelegate assistantsDelegate = workspace.GetAssistantsDelegate();
         var assistants = await assistantsDelegate(cancellationToken);
         var agentFrontmatters = assistants.Definitions.AgentFrontmatters;
 
@@ -106,11 +106,11 @@ public class AgenticAssistantProxy(
         <available-assistants>{availableAssistants}</available-assistants>
         </find-assistants-request>
         """;
-        var selectorResponse = await selector.RunAsync(message, cancellationToken: cancellationToken);        
+        var selectorResponse = await selector.RunAsync(message, cancellationToken: cancellationToken);
         var selectedNames = selectorResponse.Text.Split(',', StringSplitOptions.TrimEntries);
-        return [.. agentFrontmatters.Where(t => selectedNames.Contains(t.Name) && t.Name!= agentName)];        
+        return [.. agentFrontmatters.Where(t => selectedNames.Contains(t.Name) && t.Name != agentName)];
     }
 
-    public async Task<Assistants> GetAssistants(CancellationToken cancellationToken=default)
+    public async Task<Assistants> GetAssistants(CancellationToken cancellationToken = default)
     => await workspace.GetAssistantsDelegate()(cancellationToken);
 }

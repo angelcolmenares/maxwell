@@ -46,7 +46,7 @@ public sealed class FileSystemAIFunctions
                 return await File.ReadAllTextAsync(path);
             },
             name: "get_file_content",
-            description: "Returns the full text content of a file at the specified path.");
+            description: "Returns the full text content of a file at the specified path. Use ONLY for text files");
 
     /// <summary>
     /// Returns an <see cref="AIFunction"/> that lists files inside a directory.
