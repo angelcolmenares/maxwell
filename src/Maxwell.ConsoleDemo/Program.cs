@@ -4,31 +4,16 @@ using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
+using Serilog;
 
 Guid workspaceId = Guid.Parse(AppSettings.DefaultWorkspaceId);
 Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
+
 JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
-FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
-
-var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
-var md = new MarkItDownAIFunctions(fileSystemAccessValidator, new MarkItDownCliRunner());
-var images = new ImageAIFunctions(fileSystemAccessValidator);
-
 McpClient mcpDockerClient = await CreateMcpDockerClient();
-Func<Task<List<AIFunction>>> aiFunctions = async () => [
-    .. fileSystemAIFunctions.GetAllFunctions(),
-    .. git.GetAllFunctions(),
-    .. md.GetAllFunctions(),
-    .. images.GetAllFunctions(),
-    .. await GetMcpDockerFunctions(mcpDockerClient)];
+Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
 
-using ILoggerFactory loggerFactory = LoggerFactory.Create(
-    builder =>
-    {
-        builder.AddConsole();
-        builder.SetMinimumLevel(LogLevel.Debug);
-    });
-
+using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
 WorkspaceAgentFactory workspaceAgentFactory = new();
 Workspace workspace = await Workspace.CreateAsync(
@@ -139,7 +124,7 @@ static async ValueTask<object?> ToolCallingMiddleware(
 {
     SanitizeMessage(context);
     string agentName = callingAgent.Name ?? "AgenteDesconocido";
-    context.Arguments["agentName"] = agentName;    
+    context.Arguments["agentName"] = agentName;
     return await next(context, cancellationToken);
 }
 
@@ -170,4 +155,40 @@ static void SanitizeMessage(FunctionInvocationContext context)
             }
         }
     }
+}
+
+static ILoggerFactory CreateLoggerFactory(Guid workspaceId)
+{
+    return LoggerFactory.Create(
+        builder =>
+        {
+            builder.AddSerilog(
+                 new LoggerConfiguration()
+                     .MinimumLevel.Debug()
+                     .WriteTo.File(
+                        Path.Combine(AppSettings.GetLogsDirectory(workspaceId), $"{DateTime.Today:yyyyMMdd}.log"),
+                        rollingInterval: RollingInterval.Day,
+                        retainedFileCountLimit: 7)
+                     .CreateLogger());
+            builder.SetMinimumLevel(LogLevel.Debug);
+        });
+}
+
+static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
+    Guid workspaceId, 
+    McpClient mcpDockerClient, 
+    IFileSystemAccessValidator fileSystemAccessValidator)
+{    
+    FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
+
+    var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
+    var md = new MarkItDownAIFunctions(fileSystemAccessValidator, new MarkItDownCliRunner());
+    var images = new ImageAIFunctions(fileSystemAccessValidator);
+
+    return async () => [
+        .. fileSystemAIFunctions.GetAllFunctions(),
+    .. git.GetAllFunctions(),
+    .. md.GetAllFunctions(),
+    .. images.GetAllFunctions(),
+    .. await GetMcpDockerFunctions(mcpDockerClient)];
 }

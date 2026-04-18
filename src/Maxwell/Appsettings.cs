@@ -3,6 +3,7 @@ namespace Maxwell;
 public static class AppSettings
 {
     public const string HomeDirectoryName = ".maxwell";
+    public const string LogsDirectoryName = "logs";
     public const string HomeEnvironmentVariable = "MAXWELL_HOME";
     public const string ConnectionsJsonFileName = "connections.json";
     public const string AgentsJsonFileName = "agents.json";
@@ -52,4 +53,7 @@ public static class AppSettings
     {
         return Path.Combine(WorkspacesDirectory, workspaceId.ToString(), FileSystemAccessJson);
     }
+
+    public static string GetLogsDirectory(Guid workspaceId)
+    => Path.Combine(Home, LogsDirectoryName, workspaceId.ToString());
 }
