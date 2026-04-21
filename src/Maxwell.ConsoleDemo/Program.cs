@@ -12,7 +12,8 @@ Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
 JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
-
+JsonFileMessageStore messageStore = new (AppSettings.GetChatStoreJson(workspaceId, chatId));
+MyChatHistoryProvider historyProvider = new(messageStore);
 using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
 WorkspaceAgentFactory workspaceAgentFactory = new();
@@ -29,7 +30,8 @@ Workspace workspace = await Workspace.CreateAsync(
     GetWorkspaceToolSelector,
     GetWorkspaceAssistantSelector,
     toolCallingMiddleware: ToolCallingMiddleware,
-    loggerFactory: loggerFactory
+    loggerFactory: loggerFactory,
+    chatHistoryProvider:historyProvider
     );
 
 ChatSession chat = await workspace.GetChatSession(chatId);
@@ -41,7 +43,7 @@ do
     if (!GetUserInput(out var userQuery)) break;
     var runOptions = new AgentRunOptions();
     List<AgentResponseUpdate> updates = [];
-    await foreach (var update in leader.RunStreamingAsync(userQuery, session: session, runOptions))
+    await foreach (var update in leader.RunStreamingAsync( userQuery.ToChatMessage(), session: session,runOptions))
     {
         Console.Write(update.Text);
         updates.Add(update);

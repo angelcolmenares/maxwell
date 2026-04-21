@@ -10,11 +10,11 @@ public class AgenticToolProxy(
     public async Task<IList<AIFunction>> FindTools(string query, string agentName, CancellationToken cancellationToken = default)
     {
         AgentDefinition? toolSelectorDefinition = await workspace.GetAgentDefinitionByRole("ToolSelector");
-        
-        if (toolSelectorDefinition==default) return[];
+
+        if (toolSelectorDefinition == default) return [];
 
         AIAgent toolSelector = await workspace.GetAgent(toolSelectorDefinition);
-            
+
         var aiTools = await workspace.AiToolsFunc();
         var allToolsMD = aiTools
             .Select(t => new { t.Name, t.Description })
@@ -30,11 +30,11 @@ public class AgenticToolProxy(
         <query>{query}</query>
         <available-tools>{allToolsMD}</available-tools>
         </find-tools-request>
-        """;        
-        var routerResponse = await toolSelector.RunAsync(message, cancellationToken:cancellationToken);
+        """;
+        var routerResponse = await toolSelector.RunAsync( message.ToChatMessage(agentName),  cancellationToken: cancellationToken);
         var selectedNames = routerResponse.Text.Split(',', StringSplitOptions.TrimEntries);
         var filteredResults = aiTools
-            .Where(t => selectedNames.Contains(t.Name))            
+            .Where(t => selectedNames.Contains(t.Name))
             .ToList();
         Console.WriteLine($"found tools: {string.Join(',', filteredResults.Select(f => f.Name))}");
         return filteredResults;
