@@ -42,60 +42,94 @@ var hp = leader.GetService<InMemoryChatHistoryProvider>();
 do
 {
     if (!GetUserInput(out var userQuery)) break;
- 
+
     // Seed the chain: user message goes to the leader
-    ChatMessage currentMessage = userQuery.ToChatMessage(authorName: "user");
+    ChatMessage? currentMessage = userQuery.ToChatMessage(authorName: "user");
     AIAgent currentAgent = leader;
- 
-    while (true)
+
+    while (currentMessage != default)
     {
         AgentMessage agentMessage = await RunAgentAsync(currentAgent, currentMessage, session);
-        Console.WriteLine($"[ROUTING] Sender={agentMessage.Sender} Action={agentMessage.ActionName}");
- 
-        switch (agentMessage.ActionName)
-        {
-            case "show_to_user":
-            {                
-                goto done;
-            }
- 
-            case "invoke_assistant":
-            {                                
-                string assistantName = agentMessage.AssistantName??string.Empty;
-                AssistantMessage assistantMessage = agentMessage.ToAssistantMessage();
-                string assistantResponse = await workspace.AssistantSelector.InvokeAssistant(
-                     assistantName,
-                     agentMessage.Sender, 
-                     assistantMessage);
-                currentMessage = assistantResponse.ToChatMessage(authorName:assistantName);
-                break;
-            }
- 
-            case "find_assistants":
-            {
-                string query = agentMessage.Query??string.Empty;
-                string response = await workspace.AssistantSelector.FindAssistants(query, agentMessage.Sender);
-                currentMessage = response.ToChatMessage();
-                break;
-            }
- 
-            case "find_tools":
-            {
-                string query = agentMessage.Query??string.Empty;
-                string response = await workspace.ToolSelector.FindTools( query, agentMessage.Sender);
-                currentMessage = response.ToChatMessage();
-                break;
-            }
- 
-            default:
-                Console.WriteLine($"[WARNING] Unknown action '{agentMessage.ActionName}'. Stopping chain.");
-                goto done;
-        }
+        currentMessage = await GetNextMessage(agentMessage, workspace);
     }
- 
-    done:;
- 
+
 } while (true);
+
+//-------------------------------------------------------------------------------------------------
+
+static async Task<AgentMessage> RunAgentAsync(
+    AIAgent agent,
+    ChatMessage message,
+    AgentSession session)
+{
+    var runOptions = new AgentRunOptions();
+    List<AgentResponseUpdate> updates = [];
+
+    await foreach (var update in agent.RunStreamingAsync(message, session: session, runOptions))
+    {
+        Console.Write(update.Text);
+        updates.Add(update);
+    }
+    Console.WriteLine();
+    Console.WriteLine("----------------");
+
+    AgentResponse agentResponse = updates.ToAgentResponse();
+
+    return agentResponse.ToAgentMessage(agent.Name ?? "")
+        ?? new AgentMessage
+        {
+            Sender = agent.Name ?? string.Empty,
+            ActionName = "show_to_user",
+            Text = agentResponse.Text
+        };
+}
+
+static async Task<ChatMessage?> GetNextMessage(AgentMessage agentMessage, Workspace workspace)
+{
+    Console.WriteLine($"[ROUTING] Sender={agentMessage.Sender} Action={agentMessage.ActionName}");
+
+    return agentMessage.ActionName switch
+    {
+        "show_to_user" => null,
+        "invoke_assistant" => await InvokeAssistant(agentMessage, workspace),
+        "find_assistants" => await FindAssistants(agentMessage, workspace),
+        "find_tools" => await FindTools(agentMessage, workspace),
+        _ => await HandleUnknownAction(agentMessage, workspace)
+    };
+
+    static async Task<ChatMessage> InvokeAssistant(AgentMessage agentMessage, Workspace workspace)
+    {
+        string assistantName = agentMessage.AssistantName ?? string.Empty;
+        AssistantMessage assistantMessage = agentMessage.ToAssistantMessage();
+        string assistantResponse = await workspace.AssistantSelector.InvokeAssistant(
+                assistantName,
+                agentMessage.Sender,
+                assistantMessage);
+        return assistantResponse.ToChatMessage(authorName: assistantName);
+    }
+
+    static async Task<ChatMessage> FindAssistants(AgentMessage agentMessage, Workspace workspace)
+    {
+        string query = agentMessage.Query ?? string.Empty;
+        string response = await workspace.AssistantSelector.FindAssistants(query, agentMessage.Sender);
+        return response.ToChatMessage();
+    }
+
+    static async Task<ChatMessage> FindTools(AgentMessage agentMessage, Workspace workspace)
+    {
+
+        string query = agentMessage.Query ?? string.Empty;
+        string response = await workspace.ToolSelector.FindTools(query, agentMessage.Sender);
+        return response.ToChatMessage();
+    }
+
+    static async Task<ChatMessage?> HandleUnknownAction(AgentMessage agentMessage, Workspace workspace)
+    {
+        await Task.CompletedTask;
+        Console.WriteLine($"[WARNING] Unknown action '{agentMessage.ActionName}'. Stopping chain.");
+        return null;
+    }
+}
 
 //----------------------------------------------------------------------------------------------------------------------------
 static ToolSelector GetWorkspaceToolSelector(
@@ -231,32 +265,4 @@ static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
     .. md.GetAllFunctions(),
     .. images.GetAllFunctions(),
     .. await GetMcpDockerFunctions(mcpDockerClient)];
-}
-
-
-static async Task<AgentMessage> RunAgentAsync(
-    AIAgent agent,
-    ChatMessage message,
-    AgentSession session)
-{
-    var runOptions = new AgentRunOptions();
-    List<AgentResponseUpdate> updates = [];
-
-    await foreach (var update in agent.RunStreamingAsync(message, session: session, runOptions))
-    {
-        Console.Write(update.Text);
-        updates.Add(update);
-    }
-    Console.WriteLine();
-    Console.WriteLine("----------------");
-
-    AgentResponse agentResponse = updates.ToAgentResponse();
-
-    return agentResponse.ToAgentMessage(agent.Name??"")
-        ?? new AgentMessage
-        {
-            Sender = agent.Name ?? string.Empty,
-            ActionName = "show_to_user",
-            Text = agentResponse.Text 
-        };
 }
