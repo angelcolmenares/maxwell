@@ -88,8 +88,7 @@ public class AgenticAssistantProxy(
 
         AIAgent selector = await workspace.GetAgent(
             assistantSelectorDefinition,
-            tools: [],
-            cancellationToken);
+            cancellationToken: cancellationToken);
 
         AssistantsDelegate assistantsDelegate = workspace.GetAssistantsDelegate();
         var assistants = await assistantsDelegate(cancellationToken);

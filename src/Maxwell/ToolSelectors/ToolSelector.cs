@@ -1,5 +1,3 @@
-using Microsoft.Extensions.AI;
-
 namespace Maxwell;
 
 public class ToolSelector(IToolProxy toolProxy )
@@ -19,39 +17,8 @@ public class ToolSelector(IToolProxy toolProxy )
         </tools_usage>
         """;
     
-    public AIFunction FindToolsDelegate =>
-        AIFunctionFactory.Create(
-            this.FindTools,
-            name: "find_tools",
-            description:
-            """
-            <find_tools_description>
-            Finds best tools according to your query. 
-            <tool-arguments>
-            <argument name="query" type="string">your query describing the task yoo need to find tools for</argument>
-            <tool-arguments>
-            <returns>names and descriptions of the tools that best fit your instructions.</returns>                
-            </find_tools_description>
-            """);
 
-    public AIFunction InvokeToolDelegate =>
-        AIFunctionFactory.Create(
-            this.InvokeTool,
-            name: "invoke_tool",
-            description:
-            """
-            <invoke_tool_description>
-            Invokes a tool. 
-            <tool-arguments>
-            <argument name="toolName" type="string"/>
-            <argument name="arguments" type="nullable dictionary where key is type of string an value is type of nullable object"/>
-            <tool-arguments>
-            <returns>a nullable object</returns>
-            <invoke_tool_description>
-            """);
-
-
-    private async Task<string> FindTools(
+    public async Task<string> FindTools( 
         string query, 
         string agentName, 
         CancellationToken cancellationToken=default)
@@ -63,7 +30,7 @@ public class ToolSelector(IToolProxy toolProxy )
         return string.Format(_toolsUsageTemplate, filteredResults.ToMarkdownTable());
     }
 
-    private async Task<object?> InvokeTool(
+    public async Task<object?> InvokeTool(
         string toolName, 
         string agentName, 
         Dictionary<string, object?>? arguments,

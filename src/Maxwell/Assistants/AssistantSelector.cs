@@ -15,35 +15,13 @@ public class AssistantSelector(IAssistantProxy assistantProxy)
         </available_assistants>        
 
         When an assistant aligns with a specific task:
-        1. Use `invoke_assistant` to invoke an assistant passing the assistantName and your instructions
+        1. Respond with a json message: `{'actionName': 'invoke_assistant', 'assistantName': 'THE_SELECTED_ASSISTANT', 'text':'YOUR_INSTRUCCTIONS', 'uri':'NORMALIZED_PATH_IF_NEEED', 'other_argument': OTHER_ARG_IF_REQUIRED}`
         
         Only call what is needed, when it is needed.
         </assistants_usage>
         """;
-
-    public AIFunction FindAssistantsDelegate =>
-        AIFunctionFactory.Create(
-                this.FindAssistants,
-                name: "find_assistants",
-                description:
-                """
-                Finds assistants according to your instructions. 
-                Receives your instructions. 
-                Returns names and descriptions of the assistants that best fit your instructions.
-                """);
-
-    public AIFunction InvokeAssistantDelegate =>
-        AIFunctionFactory.Create(
-                this.InvokeAssistant,
-                name: "invoke_assistant",
-                description:
-                """
-                Invokes an smart assistant with capabilities of following instructions. 
-                Receives  assistantName and the message containing the instructions.
-                Returns response as string
-                """);
-
-    private async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken = default)
+    
+    public async Task<string> InvokeAssistant(string assistantName, string agentName, AssistantMessage message, CancellationToken cancellationToken = default)
     {      
          var uri = message.Uri;
         if (!string.IsNullOrEmpty(uri) && new Uri(uri).IsFile)
@@ -60,7 +38,7 @@ public class AssistantSelector(IAssistantProxy assistantProxy)
         $"Access denied: the path '{path}' is not within an allowed directory.";
 
 
-    private async Task<string> FindAssistants(string query, string agentName, CancellationToken cancellationToken = default)
+    public async Task<string> FindAssistants(string query, string agentName, CancellationToken cancellationToken = default)
     {
         var toolProxyResponse = await assistantProxy.FindAssistants(query, agentName, cancellationToken);
         var filteredResults = toolProxyResponse

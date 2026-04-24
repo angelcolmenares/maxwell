@@ -12,7 +12,7 @@ Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
 JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
-JsonFileMessageStore messageStore = new (AppSettings.GetChatStoreJson(workspaceId, chatId));
+JsonFileMessageStore messageStore = new(AppSettings.GetChatStoreJson(workspaceId, chatId));
 MyChatHistoryProvider historyProvider = new(messageStore);
 using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
@@ -31,33 +31,71 @@ Workspace workspace = await Workspace.CreateAsync(
     GetWorkspaceAssistantSelector,
     toolCallingMiddleware: ToolCallingMiddleware,
     loggerFactory: loggerFactory,
-    chatHistoryProvider:historyProvider
+    chatHistoryProvider: historyProvider
     );
 
 ChatSession chat = await workspace.GetChatSession(chatId);
 AIAgent leader = chat.Leader;
 var session = await leader.CreateSessionAsync();
 var hp = leader.GetService<InMemoryChatHistoryProvider>();
+
 do
 {
     if (!GetUserInput(out var userQuery)) break;
-    var runOptions = new AgentRunOptions();
-    List<AgentResponseUpdate> updates = [];
-    await foreach (var update in leader.RunStreamingAsync( userQuery.ToChatMessage(), session: session,runOptions))
+ 
+    // Seed the chain: user message goes to the leader
+    ChatMessage currentMessage = userQuery.ToChatMessage(authorName: "user");
+    AIAgent currentAgent = leader;
+ 
+    while (true)
     {
-        Console.Write(update.Text);
-        updates.Add(update);
+        AgentMessage agentMessage = await RunAgentAsync(currentAgent, currentMessage, session);
+        Console.WriteLine($"[ROUTING] Sender={agentMessage.Sender} Action={agentMessage.ActionName}");
+ 
+        switch (agentMessage.ActionName)
+        {
+            case "show_to_user":
+            {                
+                goto done;
+            }
+ 
+            case "invoke_assistant":
+            {                                
+                string assistantName = agentMessage.AssistantName??string.Empty;
+                AssistantMessage assistantMessage = agentMessage.ToAssistantMessage();
+                string assistantResponse = await workspace.AssistantSelector.InvokeAssistant(
+                     assistantName,
+                     agentMessage.Sender, 
+                     assistantMessage);
+                currentMessage = assistantResponse.ToChatMessage(authorName:assistantName);
+                break;
+            }
+ 
+            case "find_assistants":
+            {
+                string query = agentMessage.Query??string.Empty;
+                string response = await workspace.AssistantSelector.FindAssistants(query, agentMessage.Sender);
+                currentMessage = response.ToChatMessage();
+                break;
+            }
+ 
+            case "find_tools":
+            {
+                string query = agentMessage.Query??string.Empty;
+                string response = await workspace.ToolSelector.FindTools( query, agentMessage.Sender);
+                currentMessage = response.ToChatMessage();
+                break;
+            }
+ 
+            default:
+                Console.WriteLine($"[WARNING] Unknown action '{agentMessage.ActionName}'. Stopping chain.");
+                goto done;
+        }
     }
-    Console.WriteLine();
-    Console.WriteLine("----------------");
-    Console.WriteLine($"updates: {updates.ToAgentResponse().Messages.Count}");
-    Console.WriteLine("----------------");
-    var messages = hp?.GetMessages(session);
-    Console.WriteLine($"hp session messages.count: {messages?.Count ?? -99}");
-    Console.WriteLine($"currentSession.Assistants : {(await chat.GetAssistants()).Count()}");
-
+ 
+    done:;
+ 
 } while (true);
-
 
 //----------------------------------------------------------------------------------------------------------------------------
 static ToolSelector GetWorkspaceToolSelector(
@@ -177,10 +215,10 @@ static ILoggerFactory CreateLoggerFactory(Guid workspaceId)
 }
 
 static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
-    Guid workspaceId, 
-    McpClient mcpDockerClient, 
+    Guid workspaceId,
+    McpClient mcpDockerClient,
     IFileSystemAccessValidator fileSystemAccessValidator)
-{    
+{
     FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
 
     var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
@@ -193,4 +231,32 @@ static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
     .. md.GetAllFunctions(),
     .. images.GetAllFunctions(),
     .. await GetMcpDockerFunctions(mcpDockerClient)];
+}
+
+
+static async Task<AgentMessage> RunAgentAsync(
+    AIAgent agent,
+    ChatMessage message,
+    AgentSession session)
+{
+    var runOptions = new AgentRunOptions();
+    List<AgentResponseUpdate> updates = [];
+
+    await foreach (var update in agent.RunStreamingAsync(message, session: session, runOptions))
+    {
+        Console.Write(update.Text);
+        updates.Add(update);
+    }
+    Console.WriteLine();
+    Console.WriteLine("----------------");
+
+    AgentResponse agentResponse = updates.ToAgentResponse();
+
+    return agentResponse.ToAgentMessage(agent.Name??"")
+        ?? new AgentMessage
+        {
+            Sender = agent.Name ?? string.Empty,
+            ActionName = "show_to_user",
+            Text = agentResponse.Text 
+        };
 }

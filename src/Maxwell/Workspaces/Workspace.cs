@@ -79,6 +79,8 @@ public class Workspace
     public Guid WorkspaceId => _workspaceId;
 
     public Func<Task<List<AIFunction>>> AiToolsFunc => _aiToolsFunc;
+    public ToolSelector ToolSelector=> _toolSelector;
+    public AssistantSelector AssistantSelector=> _assistantSelector;
 
     public async Task<AgentDefinition?> GetAgentDefinitionByRole(string role, CancellationToken cancellationToken = default)
     {
@@ -98,18 +100,15 @@ public class Workspace
     private async Task<ChatDefinition?> GetChatDefinition(Guid chatId, CancellationToken cancellationToken = default)
     => await _chatStore.GetByIdAsync(chatId, cancellationToken);
 
-    public List<AITool> ToolSelectorDelegates => [_toolSelector.FindToolsDelegate, _toolSelector.InvokeToolDelegate];
-    public List<AITool> AssistantSelectorDelegates => [_assistantSelector.FindAssistantsDelegate, _assistantSelector.InvokeAssistantDelegate];
-
+    
     public async Task<AIAgent> GetAgent(
         AgentDefinition agentDefinition,
-        IList<AITool>? tools = null,
         CancellationToken cancellationToken = default)
     {
         return await _agentFactory.Get(
            agentDefinition,
            _agentInstructions,
-           tools,
+           tools:[],
            _aiContextProviders,
            _chatHistoryProvider,
            _services,
@@ -138,7 +137,7 @@ public class Workspace
                 AIAgent assistant = await _agentFactory.Get(
                     definition,
                     _agentInstructions,
-                    tools: [_toolSelector.FindToolsDelegate, _toolSelector.InvokeToolDelegate],
+                    tools: [],
                     _aiContextProviders,
                     _chatHistoryProvider,
                     _services,
@@ -165,8 +164,8 @@ public class Workspace
                                                  ??
                                                  throw new ArgumentException($"Leader Definition not found workspaceId {WorkspaceId} ");
 
-        List<AITool> leaderTools = [.. ToolSelectorDelegates, .. AssistantSelectorDelegates];
-        AIAgent leader = await GetAgent(leaderDefinition, leaderTools, cancellationToken);
+        
+        AIAgent leader = await GetAgent(leaderDefinition, cancellationToken: cancellationToken);
         return new(chatDefinition, new(leaderDefinition, leader), GetAssistantsDelegate());
     }
 

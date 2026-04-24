@@ -11,6 +11,6 @@ public class TruncatedDateTimeOffsetConverter : JsonConverter<DateTimeOffset>
 
     public override void Write(Utf8JsonWriter writer, DateTimeOffset value, JsonSerializerOptions options)
     {
-        writer.WriteStringValue(value.UtcDateTime.ToString("yyyyy-MM-ddTHH:mm:sszzz"));
+        writer.WriteStringValue(value.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:sszzz"));
     }
 }

@@ -5,16 +5,16 @@ namespace Maxwell;
 /// <summary>
 /// Represents the payload sent to the assistant. 
 /// </summary>
-public class AssistantMessage
+public record AssistantMessage
 {
 
     [JsonPropertyName("text")]
     [Description("The text instruction, question, or prompt for the assistant.")]
-    public string Text { get; set; } = string.Empty;
+    public string Text { get; init; } = string.Empty;
 
     [JsonPropertyName("uri")]
     [Description("Optional public URL or the LOCAL SYSTEM PATH of the file (e.g., 'C:\\path\\to\\img.jpg'). The system's backend will handle the local file reading.")]
-    public string? Uri { get; set; }
+    public string? Uri { get; init; }
 
     public override string ToString()
     {        

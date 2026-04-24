@@ -23,19 +23,19 @@ public class JsonFileMessageStore : IMessageStore
 
     public async ValueTask<List<ChatMessage>> LoadAsync(CancellationToken ct = default)
     {
-        if (!File.Exists(_filePath)) return new List<ChatMessage>();
+        if (!File.Exists(_filePath)) return [];
 
         try
         {
             using FileStream stream = File.OpenRead(_filePath);
-            return await JsonSerializer.DeserializeAsync<List<ChatMessage>>(stream, _options, ct) ?? new();
+            return await JsonSerializer.DeserializeAsync<List<ChatMessage>>(stream, _options, ct) ?? [];
         }
-        catch (JsonException) { return new(); }
+        catch (JsonException) { return []; }
     }
 
     public async ValueTask SaveAsync(IEnumerable<ChatMessage> messages, CancellationToken ct = default)
     {
-        // Cargamos existentes para merge (evitar duplicados)
+        
         var existing = await LoadAsync(ct);
         
         foreach (var msg in messages)
