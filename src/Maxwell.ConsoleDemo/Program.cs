@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 using Maxwell;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
@@ -13,7 +14,10 @@ JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFil
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
 JsonFileMessageStore messageStore = new(AppSettings.GetChatStoreJson(workspaceId, chatId));
-MyChatHistoryProvider historyProvider = new(messageStore);
+// ← NEW: wiki lives next to the chat store, one file per chat
+JsonFileWikiStore wikiStore = new(AppSettings.GetWikiJson(workspaceId, chatId));
+// ← CHANGED: pass wikiStore into the provider
+WikiChatHistoryProvider historyProvider = new(messageStore, wikiStore, slidingWindowSize: 10);
 using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
 WorkspaceAgentFactory workspaceAgentFactory = new();
@@ -33,7 +37,9 @@ Workspace workspace = await Workspace.CreateAsync(
     loggerFactory: loggerFactory,
     chatHistoryProvider: historyProvider
     );
-
+// ← NEW: wiki updater uses a cheap/fast chat client (can be same or different model)
+AIAgent wikiChatClient = await CreateWikiChatClient(workspaceId, workspaceAgentFactory, GetConnectionDefinitionProvider, GetAgentInstructionsProvider);
+WikiUpdater wikiUpdater = new(wikiChatClient, wikiStore);
 ChatSession chat = await workspace.GetChatSession(chatId);
 AIAgent leader = chat.Leader;
 var session = await leader.CreateSessionAsync();
@@ -44,14 +50,32 @@ do
     if (!GetUserInput(out var userQuery)) break;
 
     // Seed the chain: user message goes to the leader
-    ChatMessage? currentMessage = userQuery.ToChatMessage(authorName: "user");
-    AIAgent currentAgent = leader;
+    ChatMessage? currentMessage = userQuery.ToChatMessage(authorName: "user");    
+    // Collect the final text response for wiki update
+    StringBuilder fullText = new($"**user:**:{userQuery}\r\n---\r\n");                             // ← NEW
 
     while (currentMessage != default)
     {
-        AgentMessage agentMessage = await RunAgentAsync(currentAgent, currentMessage, session);
+        AgentMessage agentMessage = await RunAgentAsync(leader, currentMessage, session);
+        fullText.Append($"**{leader.Name}:**:{agentMessage.ActionName} {agentMessage.AssistantName} {agentMessage.Text} {agentMessage.Uri}\r\n---\r\n");
         currentMessage = await GetNextMessage(agentMessage, workspace);
+        if (currentMessage != default)
+        {
+            fullText.Append($"**{currentMessage.AuthorName} {currentMessage.Text}");
+        }
     }
+
+    // ── After the full Q/A cycle: update the wiki ────────────────────────────
+    // Runs async in background so it doesn't block the next user prompt.
+    // If you want to await it (safer), just remove the discard.
+    _ = wikiUpdater.UpdateAsync(userQuery, fullText.ToString())            // ← NEW
+        .ContinueWith(t =>
+        {
+            if (t.IsFaulted)
+                Console.WriteLine($"[WIKI ERROR] {t.Exception?.GetBaseException().Message}");
+            else
+                Console.WriteLine("[WIKI] Updated.");
+        });
 
 } while (true);
 
@@ -265,4 +289,17 @@ static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
     .. md.GetAllFunctions(),
     .. images.GetAllFunctions(),
     .. await GetMcpDockerFunctions(mcpDockerClient)];
+}
+
+
+static async Task<AIAgent> CreateWikiChatClient(
+    Guid workspaceId,
+    WorkspaceAgentFactory workspaceAgentFactory,
+    Func<Guid, JsonConnectionDefinitionProvider> getConnectionDefinitionProvider,
+    Func<Guid, FileAgentInstructions> getAgentInstructionsProvider)
+{
+    AgentFactory agentFactory = await workspaceAgentFactory.Create(workspaceId, getConnectionDefinitionProvider(workspaceId));
+    return await agentFactory.Get(
+     new AgentDefinition() { Name = "Wiki", Connection = "openai-local", Model = "ggml-org/gemma-4-26B-A4B-it-GGUF:Q4_K_M", Role = "Wiki", Description = "" },
+     getAgentInstructionsProvider(workspaceId));
 }

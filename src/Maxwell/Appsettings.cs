@@ -5,6 +5,7 @@ public static class AppSettings
     public const string HomeDirectoryName = ".maxwell";
     public const string LogsDirectoryName = "logs";
     public const string ChatsDirectoryName = "chats";
+    public const string WikisDirectoryName = "wikis";
     public const string HomeEnvironmentVariable = "MAXWELL_HOME";
     public const string ConnectionsJsonFileName = "connections.json";
     public const string AgentsJsonFileName = "agents.json";
@@ -61,5 +62,10 @@ public static class AppSettings
     public static string GetChatStoreJson(Guid workspaceId, Guid chatId)
     {
         return Path.Combine(WorkspacesDirectory, workspaceId.ToString(), ChatsDirectoryName, $"{chatId}.json");
+    }
+
+    public static string GetWikiJson(Guid workspaceId, Guid chatId)
+    {
+        return Path.Combine(WorkspacesDirectory, workspaceId.ToString(), WikisDirectoryName, $"{chatId}.md");
     }
 }
