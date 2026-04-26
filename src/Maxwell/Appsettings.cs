@@ -10,9 +10,9 @@ public static class AppSettings
     public const string ConnectionsJsonFileName = "connections.json";
     public const string AgentsJsonFileName = "agents.json";
     public const string ChatsJsonFileName = "chats.json";
-    public const string FileSystemAccessJson ="file-system-access.json";
-    public const string SkillsDirectoryName ="skills";
-    public const string InstructionsDirectoryName ="instructions";
+    public const string FileSystemAccessJson = "file-system-access.json";
+    public const string SkillsDirectoryName = "skills";
+    public const string InstructionsDirectoryName = "instructions";
 
     public const string DefaultWorkspaceId = "00000000-0000-0000-0000-000000000000";
     public const string DefaultChatId = "00000000-0000-0000-0000-000000000000";
@@ -29,26 +29,26 @@ public static class AppSettings
     public static string WorkspacesDirectory => Path.Combine(Home, WorkspacesDirectoryName);
     public static string DefaultWorkspaceDirectory => Path.Combine(WorkspacesDirectory, DefaultWorkspaceId);
 
-    public static string ConnectionsJsonFile() =>  Path.Combine(WorkspacesDirectory, DefaultWorkspaceId, ConnectionsJsonFileName);
+    public static string ConnectionsJsonFile() => Path.Combine(WorkspacesDirectory, DefaultWorkspaceId, ConnectionsJsonFileName);
 
 
     public static string ConnectionsJsonFile(Guid workspaceId) =>
-    Path.Combine(WorkspacesDirectory,  workspaceId.ToString(), ConnectionsJsonFileName);
+    Path.Combine(WorkspacesDirectory, workspaceId.ToString(), ConnectionsJsonFileName);
 
-    public static string AgentsJsonFile() =>  Path.Combine(WorkspacesDirectory, DefaultWorkspaceId, AgentsJsonFileName);
+    public static string AgentsJsonFile() => Path.Combine(WorkspacesDirectory, DefaultWorkspaceId, AgentsJsonFileName);
 
     public static string AgentsJsonFile(Guid workspaceId) =>
     Path.Combine(WorkspacesDirectory, workspaceId.ToString(), AgentsJsonFileName);
 
-    public static string ChatsJsonFile() =>  Path.Combine(WorkspacesDirectory, DefaultWorkspaceId, ChatsJsonFileName);
+    public static string ChatsJsonFile() => Path.Combine(WorkspacesDirectory, DefaultWorkspaceId, ChatsJsonFileName);
 
     public static string ChatsJsonFile(Guid workspaceId) =>
-    Path.Combine(WorkspacesDirectory,  workspaceId.ToString(), ChatsJsonFileName);
+    Path.Combine(WorkspacesDirectory, workspaceId.ToString(), ChatsJsonFileName);
 
-    public static string GetSkillDirectory(Guid workspaceId) => 
+    public static string GetSkillDirectory(Guid workspaceId) =>
     Path.Combine(WorkspacesDirectory, workspaceId.ToString(), SkillsDirectoryName);
 
-    public static string GetInstructionsDirectory(Guid workspaceId) => 
+    public static string GetInstructionsDirectory(Guid workspaceId) =>
     Path.Combine(WorkspacesDirectory, workspaceId.ToString(), InstructionsDirectoryName);
 
     public static string GetFileSystemAccessJson(Guid workspaceId)
@@ -64,8 +64,17 @@ public static class AppSettings
         return Path.Combine(WorkspacesDirectory, workspaceId.ToString(), ChatsDirectoryName, $"{chatId}.json");
     }
 
-    public static string GetWikiJson(Guid workspaceId, Guid chatId)
+    // <summary>Path to index.md — one per workspace (shared across all chats).</summary>
+    public static string GetIndexMd(Guid workspaceId) =>
+        Path.Combine(GetWorkspaceDirectory(workspaceId),WikisDirectoryName, "index.md");
+
+
+    /// <summary>Directory where per-exchange detail .md files are written.</summary>
+    public static string GetDetailsDirectory(Guid workspaceId) =>
+        Path.Combine(GetWorkspaceDirectory(workspaceId), WikisDirectoryName);
+
+    private static string GetWorkspaceDirectory(Guid workspaceId)
     {
-        return Path.Combine(WorkspacesDirectory, workspaceId.ToString(), WikisDirectoryName, $"{chatId}.md");
+        return Path.Combine(WorkspacesDirectory, workspaceId.ToString());
     }
 }

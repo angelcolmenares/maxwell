@@ -15,9 +15,10 @@ McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
 JsonFileMessageStore messageStore = new(AppSettings.GetChatStoreJson(workspaceId, chatId));
 // ← NEW: wiki lives next to the chat store, one file per chat
-JsonFileWikiStore wikiStore = new(AppSettings.GetWikiJson(workspaceId, chatId));
+MarkdownFileIndexStore  indexStore  = new(AppSettings.GetIndexMd(workspaceId));
+MarkdownFileDetailStore detailStore = new(AppSettings.GetDetailsDirectory(workspaceId));
 // ← CHANGED: pass wikiStore into the provider
-WikiChatHistoryProvider historyProvider = new(messageStore, wikiStore, slidingWindowSize: 10);
+WikiChatHistoryProvider historyProvider = new(messageStore, indexStore, slidingWindowSize: 10);
 using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
 WorkspaceAgentFactory workspaceAgentFactory = new();
@@ -39,7 +40,7 @@ Workspace workspace = await Workspace.CreateAsync(
     );
 // ← NEW: wiki updater uses a cheap/fast chat client (can be same or different model)
 AIAgent wikiChatClient = await CreateWikiChatClient(workspaceId, workspaceAgentFactory, GetConnectionDefinitionProvider, GetAgentInstructionsProvider);
-WikiUpdater wikiUpdater = new(wikiChatClient, wikiStore);
+WikiUpdater wikiUpdater = new(wikiChatClient, indexStore, detailStore);
 ChatSession chat = await workspace.GetChatSession(chatId);
 AIAgent leader = chat.Leader;
 var session = await leader.CreateSessionAsync();
@@ -52,7 +53,7 @@ do
     // Seed the chain: user message goes to the leader
     ChatMessage? currentMessage = userQuery.ToChatMessage(authorName: "user");    
     // Collect the final text response for wiki update
-    StringBuilder fullText = new($"**user:**:{userQuery}\r\n---\r\n");                             // ← NEW
+    StringBuilder fullText = new();                             // ← NEW
 
     while (currentMessage != default)
     {
@@ -61,7 +62,7 @@ do
         currentMessage = await GetNextMessage(agentMessage, workspace);
         if (currentMessage != default)
         {
-            fullText.Append($"**{currentMessage.AuthorName} {currentMessage.Text}");
+            fullText.Append($"{currentMessage.AuthorName}:{currentMessage.Text}\r\n---");
         }
     }
 

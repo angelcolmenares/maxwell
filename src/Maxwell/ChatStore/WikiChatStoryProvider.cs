@@ -5,39 +5,35 @@ namespace Maxwell;
 
 /// <summary>
 /// Chat history provider that keeps a SHORT sliding window of raw messages,
-/// but always prepends the compressed wiki as a system-level memory block.
+/// and prepends the full index.md as the agent's session memory.
 ///
-/// This keeps the LLM context clean:
-///   [WIKI SYSTEM MSG] + [last N raw messages]
-/// instead of the full unbounded history.
+///   [SESSION INDEX] + [last N raw messages]
 /// </summary>
 public class WikiChatHistoryProvider(
     IMessageStore messageStore,
-    IWikiStore wikiStore,
+    IIndexStore indexStore,
     int slidingWindowSize = 10) : ChatHistoryProvider
 {
     protected override async ValueTask<IEnumerable<ChatMessage>> ProvideChatHistoryAsync(
         InvokingContext context, CancellationToken cancellationToken = default)
     {
-        string wiki = await wikiStore.LoadAsync(cancellationToken);
+        string index = await indexStore.LoadAsync(cancellationToken);
         List<ChatMessage> rawMessages = await messageStore.LoadAsync(cancellationToken);
 
         var result = new List<ChatMessage>();
 
-        // 1. Prepend wiki as a compressed memory block (system role)
-        if (!string.IsNullOrWhiteSpace(wiki))
+        if (!string.IsNullOrWhiteSpace(index))
         {
             result.Add(new ChatMessage(ChatRole.System,
                 $"""
-                ## Agent Memory (Compressed Wiki)
-                The following is your compressed knowledge base from previous interactions.
-                Use it to maintain continuity without needing the full conversation history.
+                ## Session Index
+                The following is the full log of Q/A exchanges in this session.
+                Use it to maintain continuity and answer questions about what was discussed.
 
-                {wiki}
+                {index}
                 """));
         }
 
-        // 2. Append only the last N messages (sliding window)
         var window = rawMessages.Count > slidingWindowSize
             ? rawMessages[^slidingWindowSize..]
             : rawMessages;
@@ -49,7 +45,7 @@ public class WikiChatHistoryProvider(
     protected override async ValueTask StoreChatHistoryAsync(
         InvokedContext context, CancellationToken cancellationToken = default)
     {
-        var responses =  context.ResponseMessages?.OrderBy(f=> f.CreatedAt).ToList() ?? [];
+        var responses = context.ResponseMessages?.OrderBy(f => f.CreatedAt).ToList() ?? [];
         var newMessages = context.RequestMessages.Concat(responses);
         await messageStore.SaveAsync(newMessages, cancellationToken);
     }

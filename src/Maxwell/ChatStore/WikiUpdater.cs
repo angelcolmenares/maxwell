@@ -1,56 +1,64 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
-
 
 namespace Maxwell;
 
 /// <summary>
-/// After each Q/A cycle, calls the LLM to merge the new exchange
-/// into the existing wiki, keeping context lean (Karpathy-style).
+/// After each Q/A cycle:
+///   1. Asks the LLM to produce a structured JSON result with summary, details, and reference.
+///   2. Writes the detail file via IDetailStore.
+///   3. Appends a row to index.md via IIndexStore.
 ///
-/// The wiki is a living markdown document that grows in QUALITY,
-/// not in length — old facts get overwritten, new ones get added.
+/// IWikiStore is no longer used — index.md is the single source of memory.
 /// </summary>
-public class WikiUpdater(AIAgent chatClient, IWikiStore wikiStore)
+public class WikiUpdater(
+    AIAgent chatClient,
+    IIndexStore indexStore,
+    IDetailStore detailStore)
 {
     private const string SystemPrompt = """
         You are a knowledge distillation engine.
-        Your job is to maintain a concise, structured wiki that captures
-        everything an AI agent needs to remember about an ongoing work session.
+        Your job is to produce a structured record of a Q/A exchange.
 
-        ## Rules
-        - Write in compact markdown (headers, bullets, code blocks as needed).
-        - OVERWRITE outdated facts — never duplicate.
-        - MERGE similar entries — no repetition.
-        - PRESERVE all unique decisions, preferences, constraints, and discoveries.
-        - The wiki must be SHORT but DENSE. Aim for <600 tokens.
-        - Sections to maintain (add/remove as relevant):
+        ## Output format — respond ONLY with valid JSON, no markdown fences, no preamble:
+        {
+          "summary":   "<one sentence describing what happened in this exchange>",
+          "details":   "<detailed markdown notes — key facts, files mentioned, decisions, discoveries>",
+          "reference": "<file path or URL the user referenced, or empty string if none>"
+        }
+
+        ## Details rules
+        - Use compact markdown (headers, bullets, code blocks as needed).
+        - Include the key facts, files, and discoveries from THIS exchange only.
+        - Sections to use as relevant:
           ## Context
-          ## User Preferences & Style
-          ## Decisions Made
           ## Key Facts & Discoveries
-          ## Current Task State
+          ## Decisions Made
           ## Open Questions
-
-        Return ONLY the updated wiki in markdown. No preamble, no explanation.
+        - Be thorough but avoid padding.
         """;
 
-    public async Task<string> UpdateAsync(
+    private static readonly JsonSerializerOptions _jsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    public async Task UpdateAsync(
         string userMessage,
         string agentResponse,
         CancellationToken ct = default)
     {
-        string currentWiki = await wikiStore.LoadAsync(ct);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
 
         string prompt = $"""
-            ## Current Wiki
-            {(string.IsNullOrWhiteSpace(currentWiki) ? "(empty — first turn)" : currentWiki)}
-
-            ## New Exchange to Integrate
+            ## Exchange to Record
             **User:** {userMessage}
             **Agent:** {agentResponse}
 
-            Update the wiki to reflect any new knowledge from this exchange.
+            Respond with the JSON object described in the system prompt.
             """;
 
         var messages = new List<ChatMessage>
@@ -59,10 +67,68 @@ public class WikiUpdater(AIAgent chatClient, IWikiStore wikiStore)
             new(ChatRole.User, prompt)
         };
 
-        AgentResponse result = await chatClient.RunAsync(messages, cancellationToken: ct);
-        string updatedWiki = result.Text ?? currentWiki;
+        bool success = true;
+        string summary   = userMessage.Length > 80 ? userMessage[..80] + "…" : userMessage;
+        string details   = agentResponse;
+        string reference = string.Empty;
 
-        await wikiStore.SaveAsync(updatedWiki, ct);
-        return updatedWiki;
+        try
+        {
+            AgentResponse result = await chatClient.RunAsync(messages, cancellationToken: ct);
+            string raw = (result.Text ?? string.Empty).Trim();
+
+            // Strip accidental markdown fences
+            if (raw.StartsWith("```")) raw = raw[(raw.IndexOf('\n') + 1)..];
+            if (raw.EndsWith("```"))   raw = raw[..raw.LastIndexOf("```")].TrimEnd();
+
+            var parsed = JsonSerializer.Deserialize<WikiUpdateResult>(raw, _jsonOptions);
+            if (parsed is not null)
+            {
+                summary   = parsed.Summary   ?? summary;
+                details   = parsed.Details   ?? details;
+                reference = parsed.Reference ?? string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            success = false;
+            Console.WriteLine($"[WIKI] LLM parse error: {ex.Message}");
+        }
+
+        // 1. Build detail file base name: "<topic> <yyyyMMdd_HHmmss>"
+        string topicSlug     = BuildTopicSlug(userMessage, reference);
+        string baseName      = $"{topicSlug} {now:yyyyMMdd_HHmmss}";
+
+        // 2. Write detail file
+        string detailFileName = await detailStore.WriteAsync(baseName, details, ct);
+
+        // 3. Append row to index.md
+        await indexStore.AppendAsync(new IndexEntry(
+            Timestamp:      now,
+            Success:        success,
+            UserMessage:    userMessage,
+            Summary:        summary,
+            DetailFileName: detailFileName,
+            Reference:      string.IsNullOrWhiteSpace(reference) ? null : reference), ct);
+    }
+
+    private static string BuildTopicSlug(string userMessage, string reference)
+    {
+        if (!string.IsNullOrWhiteSpace(reference))
+        {
+            string fileName = Path.GetFileName(reference.Replace('\\', '/'));
+            if (!string.IsNullOrWhiteSpace(fileName))
+                return $"{fileName} Description";
+        }
+
+        string slug = userMessage.Length > 50 ? userMessage[..50] : userMessage;
+        return System.Text.RegularExpressions.Regex.Replace(slug, @"[^\w\s\-\.]", " ").Trim();
+    }
+
+    private sealed class WikiUpdateResult
+    {
+        [JsonPropertyName("summary")]   public string? Summary   { get; init; }
+        [JsonPropertyName("details")]   public string? Details   { get; init; }
+        [JsonPropertyName("reference")] public string? Reference { get; init; }
     }
 }
