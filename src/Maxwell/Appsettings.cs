@@ -13,8 +13,8 @@ public static class AppSettings
     public const string FileSystemAccessJson = "file-system-access.json";
     public const string SkillsDirectoryName = "skills";
     public const string InstructionsDirectoryName = "instructions";
-
     public const string DefaultWorkspaceId = "00000000-0000-0000-0000-000000000000";
+
     public const string DefaultChatId = "00000000-0000-0000-0000-000000000000";
     public const string DefaultWorkspaceName = "default";
 

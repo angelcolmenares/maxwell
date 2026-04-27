@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using Serilog;
 
-Guid workspaceId = Guid.Parse(AppSettings.DefaultWorkspaceId);
+Guid workspaceId = Guid.Parse("00000000-0000-0000-0000-000000000001");
 Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
 
 JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
