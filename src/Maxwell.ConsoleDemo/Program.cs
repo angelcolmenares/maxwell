@@ -33,26 +33,31 @@ Workspace workspace = await Workspace.CreateAsync(
     );
 
 ChatSession chat = await workspace.GetChatSession(chatId);
-AIAgent leader = chat.Leader;
-var session = await leader.CreateSessionAsync();
-var hp = leader.GetService<InMemoryChatHistoryProvider>();
+var session = await chat.CreateSessionAsync();
+var hp = chat.GetService<InMemoryChatHistoryProvider>();
 do
 {
     if (!GetUserInput(out var userQuery)) break;
     var runOptions = new AgentRunOptions();
     List<AgentResponseUpdate> updates = [];
-    await foreach (var update in leader.RunStreamingAsync(userQuery, session: session, runOptions))
+    await foreach (var update in chat.RunStreamingAsync(userQuery, session: session, runOptions))
     {
         Console.Write(update.Text);
         updates.Add(update);
     }
     Console.WriteLine();
     Console.WriteLine("----------------");
-    Console.WriteLine($"updates: {updates.ToAgentResponse().Messages.Count}");
+    var agentResponse = updates.ToAgentResponse();
+    Console.WriteLine($"updates: {agentResponse.Messages.Count}");
     Console.WriteLine("----------------");
     var messages = hp?.GetMessages(session);
     Console.WriteLine($"hp session messages.count: {messages?.Count ?? -99}");
     Console.WriteLine($"currentSession.Assistants : {(await chat.GetAssistants()).Count()}");
+    Console.WriteLine($"agentResponse.Usage: {agentResponse.Usage}");
+    Console.WriteLine($"agentResponse.Usage.input: {agentResponse.Usage?.InputTokenCount}");
+    Console.WriteLine($"agentResponse.Usage.output: {agentResponse.Usage?.OutputTokenCount}");
+    Console.WriteLine($"agentResponse.Usage.reasoning: {agentResponse.Usage?.ReasoningTokenCount }");
+    Console.WriteLine($"agentResponse.Usage.total: {agentResponse.Usage?.TotalTokenCount }");
 
 } while (true);
 
