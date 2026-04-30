@@ -12,7 +12,7 @@ Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
 JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
 McpClient mcpDockerClient = await CreateMcpDockerClient();
 Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
-
+MyChatHistoryProvider myHistoryProvider = new(new JsonFileMessageStore(AppSettings.GetChatJsonStoreJsonFile(workspaceId, chatId)));
 using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
 WorkspaceAgentFactory workspaceAgentFactory = new();
@@ -29,12 +29,13 @@ Workspace workspace = await Workspace.CreateAsync(
     GetWorkspaceToolSelector,
     GetWorkspaceAssistantSelector,
     toolCallingMiddleware: ToolCallingMiddleware,
-    loggerFactory: loggerFactory
+    loggerFactory: loggerFactory,
+    chatHistoryProvider: myHistoryProvider
     );
 
 ChatSession chat = await workspace.GetChatSession(chatId);
 var session = await chat.CreateSessionAsync();
-var hp = chat.GetService<InMemoryChatHistoryProvider>();
+var hp = chat.GetService<MyChatHistoryProvider>();
 do
 {
     if (!GetUserInput(out var userQuery)) break;
@@ -50,8 +51,9 @@ do
     var agentResponse = updates.ToAgentResponse();
     Console.WriteLine($"updates: {agentResponse.Messages.Count}");
     Console.WriteLine("----------------");
-    var messages = hp?.GetMessages(session);
-    Console.WriteLine($"hp session messages.count: {messages?.Count ?? -99}");
+    //var messages = hp?.GetMessages(session);
+    Console.WriteLine(hp);
+    //Console.WriteLine($"hp session messages.count: {messages?.Count ?? -99}");
     Console.WriteLine($"currentSession.Assistants : {(await chat.GetAssistants()).Count()}");
     Console.WriteLine($"agentResponse.Usage: {agentResponse.Usage}");
     Console.WriteLine($"agentResponse.Usage.input: {agentResponse.Usage?.InputTokenCount}");

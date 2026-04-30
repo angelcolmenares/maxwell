@@ -43,6 +43,10 @@ public static class AssistantMessageExtensions
         }
 
         // 3. Return the ChatMessage with the aggregated contents
-        return new ChatMessage(role ?? ChatRole.User, nativeContents) { AuthorName = authorName };
+        return new ChatMessage(role ?? ChatRole.User, nativeContents)
+        {
+            AuthorName = authorName,
+            CreatedAt = DateTimeOffset.UtcNow.RemoveMilliseconds()
+        };
     }
 }
