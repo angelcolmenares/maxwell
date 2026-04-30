@@ -103,7 +103,7 @@ public class AgenticAssistantProxy(
         <available-assistants>{availableAssistants}</available-assistants>
         </find-assistants-request>
         """;
-        var selectorResponse = await selector.RunAsync(message, cancellationToken: cancellationToken);
+        var selectorResponse = await selector.RunAsync(message.ToChatMessage(agentName, ChatRole.User), cancellationToken: cancellationToken);
         var selectedNames = selectorResponse.Text.Split(',', StringSplitOptions.TrimEntries);
         return [.. agentFrontmatters.Where(t => selectedNames.Contains(t.Name) && t.Name != agentName)];
     }

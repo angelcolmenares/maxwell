@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace Maxwell;
 
@@ -10,14 +11,17 @@ public class ChatSession(ChatDefinition chatDefinition, LeaderAgent leader, Assi
     public async Task<Assistants> GetAssistants(CancellationToken cancellationToken = default)
     => await assistantsDelegate(cancellationToken);
 
-
     public async IAsyncEnumerable<AgentResponseUpdate> RunStreamingAsync(
         string userQuery,
         AgentSession? session = default,
         AgentRunOptions? runOptions = default,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {                            
-            await foreach (var update in Leader.RunStreamingAsync(userQuery, session: session, runOptions, cancellationToken))
+            await foreach (var update in Leader.RunStreamingAsync(
+                userQuery.ToChatMessage("user", ChatRole.User),
+                session: session, 
+                runOptions, 
+                cancellationToken))
             {
                 yield return update;            
             }            
