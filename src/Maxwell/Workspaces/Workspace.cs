@@ -98,12 +98,19 @@ public class Workspace
     private async Task<ChatDefinition?> GetChatDefinition(Guid chatId, CancellationToken cancellationToken = default)
     => await _chatStore.GetByIdAsync(chatId, cancellationToken);
 
-    public List<AITool> ToolSelectorDelegates => [_toolSelector.FindToolsDelegate, _toolSelector.InvokeToolDelegate];
-    public List<AITool> AssistantSelectorDelegates => [_assistantSelector.FindAssistantsDelegate, _assistantSelector.InvokeAssistantDelegate];
+    private List<AITool> ToolSelectorDelegates => [_toolSelector.FindToolsDelegate, _toolSelector.InvokeToolDelegate];
+    private List<AITool> AssistantSelectorDelegates => [_assistantSelector.FindAssistantsDelegate, _assistantSelector.InvokeAssistantDelegate];
 
-    public async Task<AIAgent> GetAgent(
+    internal  async Task<AIAgent> GetAgent(
         AgentDefinition agentDefinition,
-        IList<AITool>? tools = null,
+        CancellationToken cancellationToken = default)
+    {
+        return await GetAgent(agentDefinition, [], cancellationToken);
+    }
+
+    private async Task<AIAgent> GetAgent(
+        AgentDefinition agentDefinition,
+        IList<AITool>? tools ,
         CancellationToken cancellationToken = default)
     {
         return await _agentFactory.Get(
@@ -138,7 +145,7 @@ public class Workspace
                 AIAgent assistant = await _agentFactory.Get(
                     definition,
                     _agentInstructions,
-                    tools: [_toolSelector.FindToolsDelegate, _toolSelector.InvokeToolDelegate],
+                    tools: ToolSelectorDelegates,
                     _aiContextProviders,
                     _chatHistoryProvider,
                     _services,

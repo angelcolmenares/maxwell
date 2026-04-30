@@ -13,7 +13,7 @@ public class AgenticToolProxy(
         
         if (toolSelectorDefinition==default) return[];
 
-        AIAgent toolSelector = await workspace.GetAgent(toolSelectorDefinition);
+        AIAgent toolSelector = await workspace.GetAgent(toolSelectorDefinition, cancellationToken);
             
         var aiTools = await workspace.AiToolsFunc();
         var allToolsMD = aiTools
