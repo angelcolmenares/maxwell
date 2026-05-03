@@ -1,4 +1,11 @@
 
+Reduce : 
+"AuthorName": "user" and is not me.
+or 
+"AuthorName": me and "Role": "assistant",  "Contents": [   {        "$type": "text", }]
+
+----------------------------------
+
 Arnold Schwarzenegger
 
 .maxwell/  

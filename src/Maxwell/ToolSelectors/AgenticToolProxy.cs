@@ -31,7 +31,7 @@ public class AgenticToolProxy(
         <available-tools>{allToolsMD}</available-tools>
         </find-tools-request>
         """;        
-        var routerResponse = await toolSelector.RunAsync(message.ToChatMessage(agentName, ChatRole.User), cancellationToken:cancellationToken);
+        var routerResponse = await toolSelector.RunAsync(message.ToChatMessage(agentName, toolSelector.Name??"ToolSelector", ChatRole.User), cancellationToken:cancellationToken);
         var selectedNames = routerResponse.Text.Split(',', StringSplitOptions.TrimEntries);
         var filteredResults = aiTools
             .Where(t => selectedNames.Contains(t.Name))            

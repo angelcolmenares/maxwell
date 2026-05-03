@@ -2,12 +2,18 @@ using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace Maxwell;
 
 
 public static class AIAgentExtensions
 {
+    extension(ChatMessage source)
+    {
+        public string? TargetAgent => source.AdditionalProperties != null && source.AdditionalProperties.TryGetValue("targetAgent", out var agent) ? agent?.ToString() : null;
+    }
+
     extension(AIAgent agent)
     {
                 

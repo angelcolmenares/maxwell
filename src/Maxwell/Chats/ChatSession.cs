@@ -18,7 +18,7 @@ public class ChatSession(ChatDefinition chatDefinition, LeaderAgent leader, Assi
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {                            
             await foreach (var update in Leader.RunStreamingAsync(
-                userQuery.ToChatMessage("user", ChatRole.User),
+                userQuery.ToChatMessage("user", Leader.Name??"Leader", ChatRole.User),
                 session: session, 
                 runOptions, 
                 cancellationToken))

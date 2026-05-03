@@ -59,7 +59,7 @@ do
     Console.WriteLine($"agentResponse.Usage.input: {agentResponse.Usage?.InputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.output: {agentResponse.Usage?.OutputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.reasoning: {agentResponse.Usage?.ReasoningTokenCount }");
-    Console.WriteLine($"agentResponse.Usage.total: {agentResponse.Usage?.TotalTokenCount }");
+    Console.WriteLine($"agentResponse.Usage.total: {agentResponse.Usage?.TotalTokenCount }");    
 
 } while (true);
 

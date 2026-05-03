@@ -10,7 +10,8 @@ public static class AssistantMessageExtensions
     /// </summary>
     public static async Task<ChatMessage> ToChatMessage(
         this AssistantMessage message,
-        string? authorName = null,
+        string authorName,
+        string assistantName,
         ChatRole? role = null,
         CancellationToken cancellationToken = default)
     {
@@ -26,19 +27,27 @@ public static class AssistantMessageExtensions
         // If it's a file or image URL
         if (!string.IsNullOrEmpty(message.Uri))
         {
+            AIContent? dataContent = null;
             // 2. Handle Local Files (Convert to Data URI / Base64)
             if (!message.Uri.StartsWith("http", StringComparison.OrdinalIgnoreCase))
             {
                 if (File.Exists(message.Uri))
                 {
-                    DataContent dataContent = await DataContent.LoadFromAsync(message.Uri, cancellationToken: cancellationToken);
-                    nativeContents.Add(dataContent);
+                    dataContent = await DataContent.LoadFromAsync(message.Uri, cancellationToken: cancellationToken);
                 }
             }
             else
             {
                 // 3. Handle Web URLs
-                nativeContents.Add(new UriContent(new Uri(message.Uri)));
+                dataContent = new UriContent(new Uri(message.Uri));
+            }
+            if (dataContent != null)
+            {
+                dataContent.AdditionalProperties = new()
+                {
+                    ["uri"] = message.Uri,
+                };
+                nativeContents.Add(dataContent);
             }
         }
 
@@ -46,7 +55,8 @@ public static class AssistantMessageExtensions
         return new ChatMessage(role ?? ChatRole.User, nativeContents)
         {
             AuthorName = authorName,
-            CreatedAt = DateTimeOffset.UtcNow.RemoveMilliseconds()
+            CreatedAt = DateTimeOffset.UtcNow.RemoveMilliseconds(),
+            AdditionalProperties = new() { ["targetAgent"] = assistantName }
         };
     }
 }
