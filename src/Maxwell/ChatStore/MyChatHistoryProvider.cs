@@ -35,7 +35,24 @@ public class MyChatHistoryProvider : ChatHistoryProvider
     protected override async ValueTask StoreChatHistoryAsync(
         InvokedContext context, CancellationToken cancellationToken = default)
     {
-        var responses = context.ResponseMessages ?? [];
+        IEnumerable<ChatMessage> responses = context.ResponseMessages ?? [];
+        
+        foreach (var request in context.RequestMessages)
+        {
+            List<AIContent> contents = [];
+            foreach (var content in request.Contents)
+            {
+                if (content is DataContent  && (content.AdditionalProperties?.TryGetValue("uri", out var text) ?? false))
+                {
+                    contents.Add(new TextContent(text?.ToString() ?? string.Empty));
+                }                
+                else
+                {
+                    contents.Add(content);
+                }                
+            }
+            request.Contents = contents;
+        }
         var newMessages = context.RequestMessages.Concat(responses).OrderBy(f => f.CreatedAt).ToList();
         await _store.SaveAsync(newMessages, cancellationToken);
     }

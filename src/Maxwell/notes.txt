@@ -1,8 +1,5 @@
 
-Reduce : 
-"AuthorName": "user" and is not me.
-or 
-"AuthorName": me and "Role": "assistant",  "Contents": [   {        "$type": "text", }]
+DO NOT SAVE BASE 64 
 
 ----------------------------------
 
