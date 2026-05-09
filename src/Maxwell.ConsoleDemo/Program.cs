@@ -56,6 +56,7 @@ do
     //Console.WriteLine($"hp session messages.count: {messages?.Count ?? -99}");
     Console.WriteLine($"currentSession.Assistants : {(await chat.GetAssistants()).Count()}");
     Console.WriteLine($"agentResponse.Usage: {agentResponse.Usage}");
+    Console.WriteLine($"agentResponse.Usage.CachedInputTokenCount: {agentResponse.Usage?.CachedInputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.input: {agentResponse.Usage?.InputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.output: {agentResponse.Usage?.OutputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.reasoning: {agentResponse.Usage?.ReasoningTokenCount }");

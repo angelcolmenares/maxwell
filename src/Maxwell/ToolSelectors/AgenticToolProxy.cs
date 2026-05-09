@@ -9,7 +9,7 @@ public class AgenticToolProxy(
     public Workspace Workspace => workspace;
     public async Task<IList<AIFunction>> FindTools(string query, string agentName, CancellationToken cancellationToken = default)
     {
-        AgentDefinition? toolSelectorDefinition = await workspace.GetAgentDefinitionByRole("ToolSelector");
+        AgentDefinition? toolSelectorDefinition = await workspace.GetAgentDefinitionByRole("ToolSelector", cancellationToken);
         
         if (toolSelectorDefinition==default) return[];
 
