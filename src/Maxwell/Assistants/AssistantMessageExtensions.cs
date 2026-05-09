@@ -35,6 +35,10 @@ public static class AssistantMessageExtensions
                 {
                     dataContent = await DataContent.LoadFromAsync(message.Uri, cancellationToken: cancellationToken);
                 }
+                else
+                {
+                    dataContent = new TextContent(message.Uri);
+                }
             }
             else
             {
