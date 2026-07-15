@@ -5,6 +5,8 @@ using Microsoft.Extensions.Logging;
 using static AgentFrameworkToolkit.MiddlewareDelegates;
 
 namespace Maxwell;
+public delegate Task<List<AIFunction>> AiToolsDelegate(CancellationToken cancellationToken = default);
+public delegate Task<AIAgent?> ToolSelectorDelegate(CancellationToken cancellationToken = default);
 
 public class Workspace
 {
@@ -13,7 +15,7 @@ public class Workspace
     private readonly IAgentDefinitionProvider _agentDefinitionProvider;
     private readonly IAgentInstructions _agentInstructions;
     private readonly AgentFactory _agentFactory;
-    private readonly Func<Task<List<AIFunction>>> _aiToolsFunc;
+    private readonly AiToolsDelegate _aiToolsFunc;
     private readonly Guid _workspaceId;
 
     private readonly IEnumerable<AIContextProvider> _aiContextProviders;
@@ -24,12 +26,14 @@ public class Workspace
     private readonly ToolCallingMiddlewareDelegate? _toolCallingMiddleware;
     private readonly Action<ToolCallingDetails>? _toolCallingDetails;
     private readonly Action<RawCallDetails>? _rawCallDetails;
-    private readonly Func<Workspace, ToolSelector> _toolSelectorFunc;
-    private readonly Func<Workspace, AssistantSelector> _assistantSelectorFunc;
-    private readonly ToolSelector _toolSelector;
+    private readonly Func<Workspace, IToolSelector> _toolSelectorFunc;
+    private readonly Func<Workspace, IAssistantSelector> _assistantSelectorFunc;
+    private readonly IToolSelector _toolSelector;
 
-    private readonly AssistantSelector _assistantSelector;
+    private readonly IAssistantSelector _assistantSelector;
     private readonly IFileSystemAccessValidator _fileSystemAccessValidator;
+    private readonly IAssistantProxy _assistantProxy;
+    private readonly IToolProxy _toolProxy;
 
     private Workspace(
         Guid workspaceId,
@@ -38,10 +42,12 @@ public class Workspace
         IAgentDefinitionProvider agentDefinitionProvider,
         IAgentInstructions agentInstructions,
         AgentFactory agentFactory,
-        Func<Task<List<AIFunction>>> aiToolsFunc,
+        AiToolsDelegate aiToolsFunc,
         IFileSystemAccessValidator fileSystemAccessValidator,
-        Func<Workspace, ToolSelector> toolSelectorFunc,
-        Func<Workspace, AssistantSelector> assistantSelectorFunc,
+        Func<Workspace, IToolSelector> toolSelectorFunc,
+        Func<Workspace, IToolProxy> toolProxyFunc,
+        Func<Workspace, IAssistantSelector> assistantSelectorFunc,
+        Func<Workspace, IAssistantProxy> assistantAgentFunc,
         IEnumerable<AIContextProvider>? aiContextProviders = null,
         ChatHistoryProvider? chatHistoryProvider = null,
         IServiceProvider? services = null,
@@ -71,14 +77,16 @@ public class Workspace
         _assistantSelectorFunc = assistantSelectorFunc;
         _toolSelector = _toolSelectorFunc(this);
         _assistantSelector = _assistantSelectorFunc(this);
-        _fileSystemAccessValidator= fileSystemAccessValidator;
+        _fileSystemAccessValidator = fileSystemAccessValidator;
+        _assistantProxy = assistantAgentFunc(this);
+        _toolProxy = toolProxyFunc(this);
 
     }
     private AssistantsDelegate? assistantDelegate = null;
 
     public Guid WorkspaceId => _workspaceId;
 
-    public Func<Task<List<AIFunction>>> AiToolsFunc => _aiToolsFunc;
+    public AiToolsDelegate AiToolsFunc => _aiToolsFunc;
 
     public async Task<AgentDefinition?> GetAgentDefinitionByRole(string role, CancellationToken cancellationToken = default)
     {
@@ -92,16 +100,16 @@ public class Workspace
         return agents.AgentFrontmatters;
     }
 
-    public async Task<bool> ValidateAccessAsync(string path, CancellationToken cancellationToken=default)
+    public async Task<bool> ValidateAccessAsync(string path, CancellationToken cancellationToken = default)
     => await _fileSystemAccessValidator.ValidateAccessAsync(path, cancellationToken);
 
     private async Task<ChatDefinition?> GetChatDefinition(Guid chatId, CancellationToken cancellationToken = default)
     => await _chatStore.GetByIdAsync(chatId, cancellationToken);
 
-    private List<AITool> ToolSelectorDelegates => [_toolSelector.FindToolsDelegate, _toolSelector.InvokeToolDelegate];
-    private List<AITool> AssistantSelectorDelegates => [_assistantSelector.FindAssistantsDelegate, _assistantSelector.InvokeAssistantDelegate];
+    private List<AITool> ToolDelegates => [_toolSelector.FindToolsDelegate, _toolProxy.InvokeToolDelegate];
+    private List<AITool> AssistantDelegates => [_assistantSelector.FindAssistantsDelegate, _assistantProxy.InvokeAssistantDelegate];
 
-    internal  async Task<AIAgent> GetAgent(
+    internal async Task<AIAgent> GetAgent(
         AgentDefinition agentDefinition,
         CancellationToken cancellationToken = default)
     {
@@ -110,7 +118,7 @@ public class Workspace
 
     private async Task<AIAgent> GetAgent(
         AgentDefinition agentDefinition,
-        IList<AITool>? tools ,
+        IList<AITool>? tools,
         CancellationToken cancellationToken = default)
     {
         return await _agentFactory.Get(
@@ -127,6 +135,18 @@ public class Workspace
            _rawCallDetails,
            cancellationToken);
     }
+
+    public ToolSelectorDelegate GetToolSelectorDelegate()
+    {
+        return async (CancellationToken cancellationToken = default) =>
+        {
+            AgentDefinition? toolSelectorDefinition = await GetAgentDefinitionByRole("ToolSelector", cancellationToken);
+            if (toolSelectorDefinition == default) return default;
+            AIAgent toolSelector = await GetAgent(toolSelectorDefinition, cancellationToken);
+            return toolSelector;
+        };
+    }
+
 
     public AssistantsDelegate GetAssistantsDelegate()
     {
@@ -145,7 +165,7 @@ public class Workspace
                 AIAgent assistant = await _agentFactory.Get(
                     definition,
                     _agentInstructions,
-                    tools: ToolSelectorDelegates,
+                    tools: ToolDelegates,
                     _aiContextProviders,
                     _chatHistoryProvider,
                     _services,
@@ -163,7 +183,7 @@ public class Workspace
     }
 
     public async Task<ChatSession> GetChatSession(Guid chatId, CancellationToken cancellationToken = default)
-    {        
+    {
 
         ChatDefinition? chatDefinition = await GetChatDefinition(chatId, cancellationToken)
                                                ??
@@ -172,10 +192,11 @@ public class Workspace
                                                  ??
                                                  throw new ArgumentException($"Leader Definition not found workspaceId {WorkspaceId} ");
 
-        List<AITool> leaderTools = [.. ToolSelectorDelegates, .. AssistantSelectorDelegates];
+        List<AITool> leaderTools = [.. ToolDelegates, .. AssistantDelegates];
         AIAgent leader = await GetAgent(leaderDefinition, leaderTools, cancellationToken);
         return new(chatDefinition, new(leaderDefinition, leader), GetAssistantsDelegate());
     }
+
 
     public static async Task<Workspace> CreateAsync(
         Guid workspaceId,
@@ -185,10 +206,12 @@ public class Workspace
         Func<Guid, IAgentInstructions> agentInstructionsFunc,
         Func<Guid, IEnumerable<AgentFrontmatter>, ILoggerFactory?, SkillContextProvider> skillContextProviderFunc,
         WorkspaceAgentFactory workspaceAgentFactory,
-        Func<Task<List<AIFunction>>> aiTools,
+        AiToolsDelegate aiTools,
         IFileSystemAccessValidator fileSystemAccessValidator,
-        Func<Workspace, ToolSelector> toolSelectorFunc,
-        Func<Workspace, AssistantSelector> assistantSelectorFunc,
+        Func<Workspace, AgenticToolSelector> toolSelectorFunc,
+        Func<Workspace, IToolProxy> toolProxyFunc,
+        Func<Workspace, IAssistantSelector> assistantSelectorFunc,
+        Func<Workspace, IAssistantProxy> assistantAgentFunc,
         IEnumerable<AIContextProvider>? aiContextProviders = null,
         ChatHistoryProvider? chatHistoryProvider = null,
         IServiceProvider? services = null,
@@ -204,7 +227,7 @@ public class Workspace
         IConnectionDefinitionProvider connectionDefitionProvider = connectionDefitionFunc(workspaceId);
         IAgentInstructions agentInstructions = agentInstructionsFunc(workspaceId);
         AgentDefintionList agents = await agentDefinitionProvider.BuildAsync(cancellationToken);
-        SkillContextProvider skillContextProvider = skillContextProviderFunc(workspaceId, agents.AgentFrontmatters,loggerFactory);
+        SkillContextProvider skillContextProvider = skillContextProviderFunc(workspaceId, agents.AgentFrontmatters, loggerFactory);
         AgentFactory agentFactory = await workspaceAgentFactory.Create(workspaceId, connectionDefitionProvider, cancellationToken);
         return new(
             workspaceId,
@@ -216,7 +239,9 @@ public class Workspace
             aiTools,
             fileSystemAccessValidator,
             toolSelectorFunc,
+            toolProxyFunc,
             assistantSelectorFunc,
+            assistantAgentFunc,
             [skillContextProvider, .. aiContextProviders ?? []],
             chatHistoryProvider,
             services,

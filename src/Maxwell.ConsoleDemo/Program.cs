@@ -11,7 +11,7 @@ Guid chatId = Guid.Parse(AppSettings.DefaultChatId);
 
 JsonFileSystemAccessValidator fileSystemAccessValidator = new(AppSettings.GetFileSystemAccessJson(workspaceId));
 McpClient mcpDockerClient = await CreateMcpDockerClient();
-Func<Task<List<AIFunction>>> aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
+AiToolsDelegate aiFunctions = CreateAiFunctionsFactory(workspaceId, mcpDockerClient, fileSystemAccessValidator);
 MyChatHistoryProvider myHistoryProvider = new(new JsonFileMessageStore(AppSettings.GetChatJsonStoreJsonFile(workspaceId, chatId)));
 using ILoggerFactory loggerFactory = CreateLoggerFactory(workspaceId);
 
@@ -27,7 +27,9 @@ Workspace workspace = await Workspace.CreateAsync(
     aiFunctions,
     fileSystemAccessValidator,
     GetWorkspaceToolSelector,
+    GetWorkspaceToolProxy,
     GetWorkspaceAssistantSelector,
+    GetWorkspaceAssistantProxy,
     toolCallingMiddleware: ToolCallingMiddleware,
     loggerFactory: loggerFactory,
     chatHistoryProvider: myHistoryProvider
@@ -66,19 +68,31 @@ do
 
 
 //----------------------------------------------------------------------------------------------------------------------------
-static ToolSelector GetWorkspaceToolSelector(
+static AgenticToolSelector GetWorkspaceToolSelector(
     Workspace workspace)
-{
-    AgenticToolProxy agenticToolProxy = new(workspace);
-    return new ToolSelector(agenticToolProxy);
+{    
+    return new (workspace.AiToolsFunc, workspace.GetToolSelectorDelegate() );
 }
 
-static AssistantSelector GetWorkspaceAssistantSelector(
+static ToolProxy GetWorkspaceToolProxy(
     Workspace workspace)
 {
-    AgenticAssistantProxy agenticAssistantProxy = new(workspace);
-    return new(agenticAssistantProxy);
+    return     new(workspace.AiToolsFunc);    
 }
+
+static AgenticAssistantSelector GetWorkspaceAssistantSelector(
+    Workspace workspace)
+{
+    AgenticAssistantSelector agenticAssistantProxy = new(workspace);
+    return agenticAssistantProxy;
+}
+
+static AssistantProxy GetWorkspaceAssistantProxy(
+    Workspace workspace)
+{
+    return new(workspace.GetAssistantsDelegate(), workspace.ValidateAccessAsync);    
+}
+
 //----------------------------------------------------------------------------------------------------------------------------
 static bool GetUserInput(out string userQuery)
 {
@@ -101,9 +115,9 @@ static async Task<McpClient> CreateMcpDockerClient()
     });
     return await McpClient.CreateAsync(transport);
 }
-static async Task<List<AIFunction>> GetMcpDockerFunctions(McpClient mcpClient)
+static async Task<List<AIFunction>> GetMcpDockerFunctions(McpClient mcpClient, CancellationToken cancellationToken = default)
 {
-    var mcpTools = await mcpClient.ListToolsAsync();
+    var mcpTools = await mcpClient.ListToolsAsync(cancellationToken:cancellationToken);
     return [.. mcpTools.Cast<AIFunction>()];
 }
 //----------------------------------------------------------------------------------------------------------------------------
@@ -182,7 +196,7 @@ static ILoggerFactory CreateLoggerFactory(Guid workspaceId)
         });
 }
 
-static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
+static AiToolsDelegate CreateAiFunctionsFactory(
     Guid workspaceId, 
     McpClient mcpDockerClient, 
     IFileSystemAccessValidator fileSystemAccessValidator)
@@ -193,10 +207,11 @@ static Func<Task<List<AIFunction>>> CreateAiFunctionsFactory(
     var md = new MarkItDownAIFunctions(fileSystemAccessValidator, new MarkItDownCliRunner());
     var images = new ImageAIFunctions(fileSystemAccessValidator);
 
-    return async () => [
+    return async (CancellationToken cancellationToken = default) => [
         .. fileSystemAIFunctions.GetAllFunctions(),
     .. git.GetAllFunctions(),
     .. md.GetAllFunctions(),
     .. images.GetAllFunctions(),
-    .. await GetMcpDockerFunctions(mcpDockerClient)];
+    .. await GetMcpDockerFunctions(mcpDockerClient, cancellationToken)
+    ];
 }
