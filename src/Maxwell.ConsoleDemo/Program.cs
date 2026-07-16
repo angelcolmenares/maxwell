@@ -83,7 +83,7 @@ static ToolProxy GetWorkspaceToolProxy(
 static AgenticAssistantSelector GetWorkspaceAssistantSelector(
     Workspace workspace)
 {
-    AgenticAssistantSelector agenticAssistantProxy = new(workspace);
+    AgenticAssistantSelector agenticAssistantProxy = new(workspace.GetAssistantsDelegate(), workspace.GetAssistantSelectorDelegate());
     return agenticAssistantProxy;
 }
 
@@ -209,9 +209,9 @@ static AiToolsDelegate CreateAiFunctionsFactory(
 
     return async (CancellationToken cancellationToken = default) => [
         .. fileSystemAIFunctions.GetAllFunctions(),
-    .. git.GetAllFunctions(),
-    .. md.GetAllFunctions(),
-    .. images.GetAllFunctions(),
-    .. await GetMcpDockerFunctions(mcpDockerClient, cancellationToken)
+        .. git.GetAllFunctions(),
+        .. md.GetAllFunctions(),
+        .. images.GetAllFunctions(),
+        .. await GetMcpDockerFunctions(mcpDockerClient, cancellationToken)
     ];
 }

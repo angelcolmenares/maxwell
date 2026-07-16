@@ -7,9 +7,7 @@ public interface IAssistantSelector
 {
     AIFunction FindAssistantsDelegate { get; }    
 }
-public class AgenticAssistantSelector(
-    Workspace workspace
-    ) :  IAssistantSelector
+public class AgenticAssistantSelector(AssistantsDelegate assistantsDelegate,AssistantSelectorDelegate assistantSelectorDelegate ) :  IAssistantSelector
 {
   
     private const string _instrucctionsTemplate =
@@ -44,13 +42,11 @@ public class AgenticAssistantSelector(
     private async Task<string> FindAssistants(string query, string agentName, CancellationToken cancellationToken = default)
     {
         Console.WriteLine($"[DEBUG] FindAssistants called with query: {query}, agentName: {agentName}");
-        AgentDefinition? assistantSelectorDefinition = await workspace.GetAgentDefinitionByRole("AssistantSelector", cancellationToken);
+        
 
-        if (assistantSelectorDefinition == default) return string.Empty;
-
-        AIAgent selector = await workspace.GetAgent(assistantSelectorDefinition, cancellationToken);
-
-        AssistantsDelegate assistantsDelegate = workspace.GetAssistantsDelegate();
+        AIAgent? selector = await assistantSelectorDelegate(cancellationToken);
+        if( selector == default) return string.Empty;
+        
         var assistants = await assistantsDelegate(cancellationToken);
         var agentFrontmatters = assistants.Definitions.AgentFrontmatters;
 

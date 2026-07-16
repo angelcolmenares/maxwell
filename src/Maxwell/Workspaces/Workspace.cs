@@ -7,6 +7,7 @@ using static AgentFrameworkToolkit.MiddlewareDelegates;
 namespace Maxwell;
 public delegate Task<List<AIFunction>> AiToolsDelegate(CancellationToken cancellationToken = default);
 public delegate Task<AIAgent?> ToolSelectorDelegate(CancellationToken cancellationToken = default);
+public delegate Task<AIAgent?> AssistantSelectorDelegate(CancellationToken cancellationToken = default);
 
 public class Workspace
 {
@@ -141,6 +142,16 @@ public class Workspace
         return async (CancellationToken cancellationToken = default) =>
         {
             AgentDefinition? toolSelectorDefinition = await GetAgentDefinitionByRole("ToolSelector", cancellationToken);
+            if (toolSelectorDefinition == default) return default;
+            AIAgent toolSelector = await GetAgent(toolSelectorDefinition, cancellationToken);
+            return toolSelector;
+        };
+    }
+    public AssistantSelectorDelegate GetAssistantSelectorDelegate()
+    {
+        return async (CancellationToken cancellationToken = default) =>
+        {
+            AgentDefinition? toolSelectorDefinition = await GetAgentDefinitionByRole("AssistantSelector", cancellationToken);
             if (toolSelectorDefinition == default) return default;
             AIAgent toolSelector = await GetAgent(toolSelectorDefinition, cancellationToken);
             return toolSelector;
