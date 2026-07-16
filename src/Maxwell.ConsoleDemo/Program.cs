@@ -144,40 +144,11 @@ static async ValueTask<object?> ToolCallingMiddleware(
     Func<FunctionInvocationContext, CancellationToken, ValueTask<object?>> next,
     CancellationToken cancellationToken)
 {
-    SanitizeMessage(context);
-    string agentName = callingAgent.Name ?? "AgenteDesconocido";
-    context.Arguments["agentName"] = agentName;
+    Console.WriteLine($"[DEBUG ToolCallingMiddleware] Invoked for agent: {callingAgent.Name} Function: {context.Function.Name}");
     return await next(context, cancellationToken);
 }
 
-static void SanitizeMessage(FunctionInvocationContext context)
-{
-    if (context.Arguments.TryGetValue("message", out object? messageValue))
-    {
-        string? jsonString = messageValue switch
-        {
-            string s => s,
-            JsonElement e when e.ValueKind == JsonValueKind.String => e.GetString(),
-            _ => null
-        };
 
-        if (jsonString != null)
-        {
-            string healthyJson = JsonSanitizer.Sanitize(jsonString);
-            try
-            {
-                var assistantMsg = JsonSerializer.Deserialize<object>(healthyJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                context.Arguments["message"] = assistantMsg;
-                Console.WriteLine("[DEBUG ToolCallingMiddleware] Message sanitized and unpacked.");
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine($"[ERROR ToolCallingMiddleware]  {exception}");
-                throw;
-            }
-        }
-    }
-}
 
 static ILoggerFactory CreateLoggerFactory(Guid workspaceId)
 {

@@ -6,6 +6,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 using AgentFrameworkToolkit;
 using static AgentFrameworkToolkit.MiddlewareDelegates;
+using System.Text.Json;
 
 namespace Maxwell;
 
@@ -13,8 +14,8 @@ public class AgentFactory(ConnectionDefinitionList connections)
 {
     private readonly IReadOnlyDictionary<string, AgentFactoryDelegate> _delegates
         = BuildDelegates(connections);
-    private readonly Dictionary<string, AIAgent> _agents= [];
-        
+    private readonly Dictionary<string, AIAgent> _agents = [];
+
 
     public async Task<AIAgent> Get(
         AgentDefinition agentDefinition,
@@ -24,13 +25,13 @@ public class AgentFactory(ConnectionDefinitionList connections)
         ChatHistoryProvider? chatHistoryProvider = null,
         IServiceProvider? services = null,
         ILoggerFactory? loggerFactory = null,
-        LoggingMiddleware? loggingMiddleware=null,
-        ToolCallingMiddlewareDelegate? toolCallingMiddleware=null,
-        Action<ToolCallingDetails>?  toolCallingDetails=null,
-        Action<RawCallDetails>? rawCallDetails=null,
-        CancellationToken cancellationToken =default)
+        LoggingMiddleware? loggingMiddleware = null,
+        ToolCallingMiddlewareDelegate? toolCallingMiddleware = null,
+        Action<ToolCallingDetails>? toolCallingDetails = null,
+        Action<RawCallDetails>? rawCallDetails = null,
+        CancellationToken cancellationToken = default)
     {
-        if( _agents.TryGetValue( agentDefinition.Name, out var agent))
+        if (_agents.TryGetValue(agentDefinition.Name, out var agent))
         {
             return agent;
         }
@@ -43,16 +44,16 @@ public class AgentFactory(ConnectionDefinitionList connections)
         agent = factory(
             agentDefinition,
             await agentInstructions.ReadAsync(agentDefinition, cancellationToken),
-            tools, 
-            aiContextProviders, 
-            chatHistoryProvider, 
-            services, 
+            tools,
+            aiContextProviders,
+            chatHistoryProvider,
+            services,
             loggerFactory,
             loggingMiddleware,
             toolCallingMiddleware,
             toolCallingDetails,
             rawCallDetails);
-        _agents.TryAdd(agentDefinition.Name,  agent);
+        _agents.TryAdd(agentDefinition.Name, agent);
         return agent;
     }
 
@@ -93,38 +94,84 @@ public class AgentFactory(ConnectionDefinitionList connections)
 
         return (AgentDefinition agentDef,
         string instructions,
-        IList<AITool>? tools= null,    
-        IEnumerable<AIContextProvider>? aIContextProviders =null,
+        IList<AITool>? tools = null,
+        IEnumerable<AIContextProvider>? aIContextProviders = null,
         ChatHistoryProvider? chatHistoryProvider = null,
         IServiceProvider? services = null,
         ILoggerFactory? loggerFactory = null,
-        LoggingMiddleware? loggingMiddleware=null,
-        ToolCallingMiddlewareDelegate? toolCallingMiddelware=null,
-         Action<ToolCallingDetails>?  toolCallingDetails=null,
-        Action<RawCallDetails>? rawCallDetails=null) => agentFactory.CreateAgent(new AgentOptions
+        LoggingMiddleware? loggingMiddleware = null,
+        ToolCallingMiddlewareDelegate? toolCallingMiddelware = null,
+         Action<ToolCallingDetails>? toolCallingDetails = null,
+        Action<RawCallDetails>? rawCallDetails = null) => agentFactory.CreateAgent(new AgentOptions
         {
             Model = agentDef.Model,
             Name = agentDef.Name,
             Instructions = instructions,
             Description = agentDef.Description,
             //
-            Tools= tools,
-            AIContextProviders= aIContextProviders,
-            ChatHistoryProvider= chatHistoryProvider,
-            Services=services,
-            LoggerFactory= loggerFactory,
+            Tools = tools,
+            AIContextProviders = aIContextProviders,
+            ChatHistoryProvider = chatHistoryProvider,
+            Services = services,
+            LoggerFactory = loggerFactory,
             LoggingMiddleware = loggingMiddleware,
-            ToolCallingMiddleware=toolCallingMiddelware,                    
-            RawToolCallDetails= toolCallingDetails,
-            RawHttpCallDetails = rawCallDetails,            
+            ToolCallingMiddleware = GetToolCallingMiddlewareDelegate(toolCallingMiddelware),
+            RawToolCallDetails = toolCallingDetails,
+            RawHttpCallDetails = rawCallDetails,
             // 
             Temperature = agentDef.Options.GetFloat("temperature"),
             MaxOutputTokens = agentDef.Options.GetInt("maxOutputTokens"),
 
-        } );
+        });
     }
 
-    // Resuelve TODO: "Map AgentDefinition into GitHubAgentOptions"
+    private static ToolCallingMiddlewareDelegate? GetToolCallingMiddlewareDelegate(ToolCallingMiddlewareDelegate? toolCallingMiddleware)
+    {
+        return async (callingAgent, context, next, cancellationToken) =>
+        {
+            SanitizeMessage(context);
+            string agentName = callingAgent.Name ?? "AgenteDesconocido";
+            context.Arguments["agentName"] = agentName;
+
+            if (toolCallingMiddleware != null)
+            {
+                return await toolCallingMiddleware(callingAgent, context, next, cancellationToken);
+            }
+            else
+            {
+                return await next(context, cancellationToken);
+            }
+        };
+    }
+
+    static void SanitizeMessage(FunctionInvocationContext context)
+    {
+        if (context.Arguments.TryGetValue("message", out object? messageValue))
+        {
+            string? jsonString = messageValue switch
+            {
+                string s => s,
+                JsonElement e when e.ValueKind == JsonValueKind.String => e.GetString(),
+                _ => null
+            };
+
+            if (jsonString != null)
+            {
+                string healthyJson = JsonSanitizer.Sanitize(jsonString);
+                try
+                {
+                    var assistantMsg = JsonSerializer.Deserialize<object>(healthyJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    context.Arguments["message"] = assistantMsg;
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine($"[ERROR ToolCallingMiddleware]  {exception}");
+                    throw;
+                }
+            }
+        }
+    }
+
     private static AgentFactoryDelegate CreateGitHubDelegate(ConnectionDefinition definition)
     {
         var connection = new GitHubConnection(definition.Options.GetString("personalToken"));
@@ -132,30 +179,30 @@ public class AgentFactory(ConnectionDefinitionList connections)
 
         return (AgentDefinition agentDef,
         string instructions,
-        IList<AITool>? tools= null,
-        IEnumerable<AIContextProvider>? aIContextProviders =null,
+        IList<AITool>? tools = null,
+        IEnumerable<AIContextProvider>? aIContextProviders = null,
         ChatHistoryProvider? chatHistoryProvider = null,
         IServiceProvider? services = null,
         ILoggerFactory? loggerFactory = null,
-        LoggingMiddleware? loggingMiddleware=null,
-        ToolCallingMiddlewareDelegate? toolCallingMiddelware=null,
-        Action<ToolCallingDetails>?  toolCallingDetails=null,
-        Action<RawCallDetails>? rawCallDetails=null)=> agentFactory.CreateAgent(new GitHubAgentOptions
+        LoggingMiddleware? loggingMiddleware = null,
+        ToolCallingMiddlewareDelegate? toolCallingMiddelware = null,
+        Action<ToolCallingDetails>? toolCallingDetails = null,
+        Action<RawCallDetails>? rawCallDetails = null) => agentFactory.CreateAgent(new GitHubAgentOptions
         {
             Model = agentDef.Model,
             Name = agentDef.Name,
             Instructions = instructions,
             Description = agentDef.Description,
             //
-            Tools= tools,
-            AIContextProviders= aIContextProviders,
-            ChatHistoryProvider= chatHistoryProvider,
-            Services=services,
-            LoggerFactory= loggerFactory,
+            Tools = tools,
+            AIContextProviders = aIContextProviders,
+            ChatHistoryProvider = chatHistoryProvider,
+            Services = services,
+            LoggerFactory = loggerFactory,
             LoggingMiddleware = loggingMiddleware,
-            ToolCallingMiddleware=toolCallingMiddelware,                    
-            RawToolCallDetails= toolCallingDetails,
-            RawHttpCallDetails = rawCallDetails,            
+            ToolCallingMiddleware = toolCallingMiddelware,
+            RawToolCallDetails = toolCallingDetails,
+            RawHttpCallDetails = rawCallDetails,
             //
             Temperature = agentDef.Options.GetFloat("temperature"),
             MaxOutputTokens = agentDef.Options.GetInt("maxOutputTokens"),
