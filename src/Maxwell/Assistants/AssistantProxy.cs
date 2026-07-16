@@ -3,8 +3,6 @@ using Microsoft.Extensions.AI;
 
 namespace Maxwell;
 
-public delegate Task<bool> ValidateAccessDelegate(string path, CancellationToken cancellationToken = default);
-
 public interface IAssistantProxy
 {
     AIFunction InvokeAssistantDelegate { get; }

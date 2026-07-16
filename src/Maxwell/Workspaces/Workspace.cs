@@ -5,9 +5,6 @@ using Microsoft.Extensions.Logging;
 using static AgentFrameworkToolkit.MiddlewareDelegates;
 
 namespace Maxwell;
-public delegate Task<List<AIFunction>> AiToolsDelegate(CancellationToken cancellationToken = default);
-public delegate Task<AIAgent?> ToolSelectorDelegate(CancellationToken cancellationToken = default);
-public delegate Task<AIAgent?> AssistantSelectorDelegate(CancellationToken cancellationToken = default);
 
 public class Workspace
 {
