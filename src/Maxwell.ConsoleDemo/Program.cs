@@ -31,8 +31,7 @@ Workspace workspace = await Workspace.CreateAsync(
     GetWorkspaceAssistantProxy,
     toolCallingMiddleware: ToolCallingMiddleware,
     loggerFactory: loggerFactory,
-    chatHistoryProvider: myHistoryProvider
-    );
+    chatHistoryProvider: myHistoryProvider);
 
 ChatSession chat = await workspace.GetChatSession(chatId);
 var session = await chat.CreateSessionAsync();
@@ -60,8 +59,8 @@ do
     Console.WriteLine($"agentResponse.Usage.CachedInputTokenCount: {agentResponse.Usage?.CachedInputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.input: {agentResponse.Usage?.InputTokenCount}");
     Console.WriteLine($"agentResponse.Usage.output: {agentResponse.Usage?.OutputTokenCount}");
-    Console.WriteLine($"agentResponse.Usage.reasoning: {agentResponse.Usage?.ReasoningTokenCount }");
-    Console.WriteLine($"agentResponse.Usage.total: {agentResponse.Usage?.TotalTokenCount }");    
+    Console.WriteLine($"agentResponse.Usage.reasoning: {agentResponse.Usage?.ReasoningTokenCount}");
+    Console.WriteLine($"agentResponse.Usage.total: {agentResponse.Usage?.TotalTokenCount}");
 
 } while (true);
 
@@ -69,14 +68,14 @@ do
 //----------------------------------------------------------------------------------------------------------------------------
 static AgenticToolSelector GetWorkspaceToolSelector(
     Workspace workspace)
-{    
-    return new (workspace.AiToolsFunc, workspace.GetToolSelectorDelegate() );
+{
+    return new(workspace.AiToolsFunc, workspace.GetToolSelectorDelegate());
 }
 
 static ToolProxy GetWorkspaceToolProxy(
     Workspace workspace)
 {
-    return     new(workspace.AiToolsFunc);    
+    return new(workspace.AiToolsFunc);
 }
 
 static AgenticAssistantSelector GetWorkspaceAssistantSelector(
@@ -89,7 +88,7 @@ static AgenticAssistantSelector GetWorkspaceAssistantSelector(
 static AssistantProxy GetWorkspaceAssistantProxy(
     Workspace workspace)
 {
-    return new(workspace.GetAssistantsDelegate(), workspace.ValidateAccessAsync);    
+    return new(workspace.GetAssistantsDelegate(), workspace.ValidateAccessAsync);
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
@@ -116,7 +115,7 @@ static async Task<McpClient> CreateMcpDockerClient()
 }
 static async Task<List<AIFunction>> GetMcpDockerFunctions(McpClient mcpClient, CancellationToken cancellationToken = default)
 {
-    var mcpTools = await mcpClient.ListToolsAsync(cancellationToken:cancellationToken);
+    var mcpTools = await mcpClient.ListToolsAsync(cancellationToken: cancellationToken);
     return [.. mcpTools.Cast<AIFunction>()];
 }
 //----------------------------------------------------------------------------------------------------------------------------
@@ -167,10 +166,10 @@ static ILoggerFactory CreateLoggerFactory(Guid workspaceId)
 }
 
 static AiToolsDelegate CreateAiFunctionsFactory(
-    Guid workspaceId, 
-    McpClient mcpDockerClient, 
+    Guid workspaceId,
+    McpClient mcpDockerClient,
     IFileSystemAccessValidator fileSystemAccessValidator)
-{    
+{
     FileSystemAIFunctions fileSystemAIFunctions = new(fileSystemAccessValidator);
 
     var git = new GitAIFunctions(validator: fileSystemAccessValidator, personalAccessToken: PatResolver.Resolve(config: null));
