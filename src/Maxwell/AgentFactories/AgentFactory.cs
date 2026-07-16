@@ -59,12 +59,10 @@ public class AgentFactory(ConnectionDefinitionList connections)
     private static IReadOnlyDictionary<string, AgentFactoryDelegate> BuildDelegates(
         ConnectionDefinitionList connections)
     {
-        var dict = new Dictionary<string, AgentFactoryDelegate>(
-            StringComparer.OrdinalIgnoreCase); // las claves también case-insensitive
+        var dict = new Dictionary<string, AgentFactoryDelegate>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var definition in connections.Definitions)
         {
-            // Resuelve TODO: ClientType.ToLower() frágil → StringComparison
             var factory = definition.ClientType switch
             {
                 var t when t.Equals("openai", StringComparison.OrdinalIgnoreCase)
