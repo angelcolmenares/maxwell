@@ -133,7 +133,8 @@ static JsonChatStore GetChatStore(Guid workspaceId) => new(AppSettings.ChatsJson
 
 static FileAgentSkillContextProvider GetSkillContextProvider(
     Guid workspaceId,
-    IEnumerable<AgentFrontmatter> agentFrontmatterList, ILoggerFactory? loggerFactory = null)
+    IEnumerable<AgentFrontmatter> agentFrontmatterList, 
+    ILoggerFactory? loggerFactory = null)
     => new(AppSettings.GetSkillDirectory(workspaceId), agentFrontmatterList, loggerFactory: loggerFactory);
 
 static async ValueTask<object?> ToolCallingMiddleware(
