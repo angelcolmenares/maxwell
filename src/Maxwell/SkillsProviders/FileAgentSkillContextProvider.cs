@@ -56,9 +56,10 @@ public class FileAgentSkillContextProvider(
             </script_instructions> 
             </available_skills>            
             """,
-                DisableCaching = agentSkillsProviderOptions?.DisableCaching ?? false,
-                ScriptApproval = agentSkillsProviderOptions?.ScriptApproval ?? false
-
+            DisableLoadSkillApproval = agentSkillsProviderOptions?.DisableLoadSkillApproval ?? false,
+            DisableReadSkillResourceApproval = agentSkillsProviderOptions?.DisableReadSkillResourceApproval ?? false,
+            DisableRunSkillScriptApproval = agentSkillsProviderOptions?.DisableRunSkillScriptApproval ?? false,
+            IncludeDetailedErrors = agentSkillsProviderOptions?.IncludeDetailedErrors ?? false,                             
             },
             loggerFactory)).AsReadOnly();
     }

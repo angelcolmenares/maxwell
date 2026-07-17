@@ -1,4 +1,30 @@
+CurrentDirectory
+.maxwell/
+  agents.md
+  project.json {"id":"TheFullNameOfTheFolder"}
+  agents.json  [{"name":"Maxwell", "connection":"llama-cpp", "model":"gemma" }, {"name":"MyAgent", "connection":"llama-cpp", "model":"qwen"}, ]   
+  skills/
+    MyAgent/
+    Maxwell/
 
+UserHomeDirectory
+.maxwell/
+   agents.md
+   connections.js  [{"name": "llama-cpp", "clientType": "OpenAI",  "options": { "apiKey": "no-key", "endpoint": "http://192.168.40.20:8080/v1" }}]
+   maxwell.json {"name":"Maxwell", "connection":"llama-cpp", "model":"gemma" }
+   skills/
+      Maxwell/
+   projects/ 
+      TheFullNameOfTheFolder/
+          sessions.json [{"sessionId":"session-id-1, "title": "first session", "agent":"Maxwell", "createdAt":"2026-01-01......"}, {} ]
+          session-id-1/
+          session-id-2/
+          session-id-3/
+
+
+   
+
+-----------------------
 DO NOT SAVE BASE 64 
 
 ----------------------------------
